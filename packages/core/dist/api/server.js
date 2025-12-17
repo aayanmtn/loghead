@@ -15,7 +15,7 @@ async function startApiServer(db) {
     app.use((0, cors_1.default)());
     app.use(express_1.default.json());
     await auth.initialize();
-    console.log(chalk_1.default.bold.green(`\n💻 MCP server running on:`));
+    console.log(chalk_1.default.bold.green(`\n💻 API server running on:`));
     console.log(chalk_1.default.green(`http://localhost:${port}`));
     // Helper to parse OTLP attributes
     const parseOtlpAttributes = (attributes) => {
@@ -171,6 +171,16 @@ async function startApiServer(db) {
         const { id } = req.params;
         db.deleteStream(id);
         res.json({ success: true });
+    });
+    app.get("/api/streams/:id/token", async (req, res) => {
+        const { id } = req.params;
+        try {
+            const token = await auth.createStreamToken(id);
+            res.json({ token });
+        }
+        catch (e) {
+            res.status(500).json({ error: String(e) });
+        }
     });
     app.post("/api/streams", (req, res) => {
         // Deprecated or just listing? The previous code had this returning listStreams for POST?

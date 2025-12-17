@@ -131,6 +131,7 @@ Create a stream to pipe logs into.
 ```bash
 npx @loghead/core streams add terminal --project <PROJECT_ID> --name "Build Logs"
 # Copy the Stream Token returned
+# Note: This will automatically update the `dev:log` script in your package.json with the new token.
 ```
 
 **For Docker Containers:**
@@ -146,9 +147,11 @@ Now, feed logs into the stream using the ingestor tools.
 **Add directly to project:**
 
 ```bash
-# Add to package.json's script of your project
-dev:log": "<commad-to-start-your-project> | npx @loghead/terminal --token <STREAM-TOKEN>
-#Add the token
+# Automatically add the dev:log script to your package.json
+npx @loghead/terminal init --token <STREAM_TOKEN>
+
+# Or run it interactively (will prompt for token)
+npx @loghead/terminal init
 ```
 
 
@@ -233,11 +236,13 @@ The `@loghead/core` package provides several commands to manage your log infrast
   npx @loghead/core streams add docker "My Container" --project <PROJECT_ID> --container <CONTAINER_NAME>
   npx @loghead/core streams add opentelemetry "My OTLP Stream" --project <PROJECT_ID>
   ```
+  *Note: If a `package.json` exists, this will update the `dev:log` script with the new token.*
 
 - **Get Stream Token**:
   ```bash
   npx @loghead/core streams token <STREAM_ID>
   ```
+  *Note: If a `package.json` exists, this will update the `dev:log` script with the new token.*
 - **Delete Stream**:
   ```bash
   npx @loghead/core streams delete <STREAM_ID>
