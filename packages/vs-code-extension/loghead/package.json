@@ -1,0 +1,110 @@
+{
+  "name": "loghead",
+  "displayName": "Loghead",
+  "description": "GUI dashboard for Loghead",
+  "version": "0.0.1",
+  "publisher": "loghead",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:loghead.server",
+    "onView:loghead.projects",
+    "onView:loghead.actions"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "loghead",
+          "title": "Loghead",
+          "icon": "media/logo.png"
+        }
+      ]
+    },
+    "views": {
+      "loghead": [
+        {
+          "id": "loghead.server",
+          "name": "Server"
+        },
+        {
+          "id": "loghead.projects",
+          "name": "Projects"
+        },
+        {
+          "id": "loghead.actions",
+          "name": "Actions"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "loghead.openDashboard",
+        "title": "Loghead: Open Dashboard"
+      },
+      {
+        "command": "loghead.deleteProject",
+        "title": "Delete Project"
+      },
+      {
+        "command": "loghead.copyStreamToken",
+        "title": "Copy Stream Token"
+      },
+      {
+        "command": "loghead.copyStreamIngest",
+        "title": "Copy Stream Ingest Command"
+      },
+      {
+        "command": "loghead.deleteStream",
+        "title": "Delete Stream"
+      }
+    ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "loghead.copyStreamToken",
+          "when": "view == loghead.projects && viewItem == stream",
+          "group": "inline"
+        },
+        {
+          "command": "loghead.copyStreamIngest",
+          "when": "view == loghead.projects && viewItem == stream",
+          "group": "inline"
+        },
+        {
+          "command": "loghead.deleteProject",
+          "when": "view == loghead.projects && viewItem == project",
+          "group": "danger"
+        },
+        {
+          "command": "loghead.deleteStream",
+          "when": "view == loghead.projects && viewItem == stream",
+          "group": "danger"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.107.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.48.1",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}

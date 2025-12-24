@@ -13,71 +13,111 @@ const db = new DbService();
 const auth = new AuthService();
 
 async function main() {
-    const argv = await yargs(hideBin(process.argv))
-        .command(["start", "$0"], "Start API Server", {}, async () => {
-            console.log("Ensuring database is initialized...");
-            await migrate(false); // Run migrations silently
+  const argv = await yargs(hideBin(process.argv))
+    .command(
+      ["start", "$0"],
+      "Start API Server",
+      (yargs) =>
+        yargs.option("headless", {
+          type: "boolean",
+          default: false,
+          describe: "Run without terminal UI",
+        }),
+      async (argv) => {
+        console.log("Ensuring database is initialized...");
+        await migrate(false); // Run migrations silently
 
-            const token = await auth.getOrCreateMcpToken();
+        const token = await auth.getOrCreateMcpToken();
 
-            // Start API Server (this sets up express listen)
-            await startApiServer(db);
+        // Start API Server (Express)
+        await startApiServer(db);
 
-            // Start TUI (this will clear screen and take over)
-            await startTui(db, token);
-            process.exit(0);
+        if (!argv.headless) {
+          // Normal CLI behavior
+          await startTui(db, token);
+          process.exit(0);
+        }
+
+        // Headless mode
+        const port = process.env.PORT || 4567;
+
+        console.log("Loghead running in headless mode");
+        console.log(`PORT=${port}`);
+        console.log(`MCP_TOKEN=${token}`);
+      }
+    )
+
+    .command("projects <cmd> [name]", "Manage projects", (yargs) => {
+      yargs
+        .command("list", "List projects", {}, () => {
+          const projects = db.listProjects();
+          console.table(projects);
         })
-        .command("projects <cmd> [name]", "Manage projects", (yargs) => {
-            yargs
-                .command("list", "List projects", {}, () => {
-                    const projects = db.listProjects();
-                    console.table(projects);
-                })
-                .command("add <name>", "Add project", {}, (argv) => {
-                    const p = db.createProject(argv.name as string);
-                    console.log(`Project created: ${p.id}`);
-                })
-                .command("delete <id>", "Delete project", {}, (argv) => {
-                    db.deleteProject(argv.id as string);
-                    console.log(`Project deleted: ${argv.id}`);
-                });
+        .command("add <name>", "Add project", {}, (argv) => {
+          const p = db.createProject(argv.name as string);
+          console.log(`Project created: ${p.id}`);
         })
-        .command("streams <cmd> [type] [name]", "Manage streams", (yargs) => {
-            yargs
-                .command("list", "List streams", {
-                    project: { type: "string", demandOption: true }
-                }, (argv) => {
-                    const streams = db.listStreams(argv.project);
-                    console.table(streams);
-                })
-                .command("add <type> <name>", "Add stream", {
-                    project: { type: "string", demandOption: true },
-                    container: { type: "string" }
-                }, async (argv) => {
-                    const config: Record<string, unknown> = {};
-                    if (argv.type === "docker" && argv.container) {
-                        config.container = argv.container;
-                    }
-                    const s = await db.createStream(argv.project, argv.type as string, argv.name as string, config);
-                    console.log(`Stream created: ${s.id}`);
-                    console.log(`Token: ${s.token}`);
-                })
-                .command("token <streamId>", "Get token for stream", {}, async (argv) => {
-                    const token = await auth.createStreamToken(argv.streamId as string);
-                    console.log(`Token: ${token}`);
-                })
-                .command("delete <id>", "Delete stream", {}, (argv) => {
-                    db.deleteStream(argv.id as string);
-                    console.log(`Stream deleted: ${argv.id}`);
-                });
-        })
-        .demandCommand(1)
-        .strict()
-        .help()
-        .parse();
+        .command("delete <id>", "Delete project", {}, (argv) => {
+          db.deleteProject(argv.id as string);
+          console.log(`Project deleted: ${argv.id}`);
+        });
+    })
+    .command("streams <cmd> [type] [name]", "Manage streams", (yargs) => {
+      yargs
+        .command(
+          "list",
+          "List streams",
+          {
+            project: { type: "string", demandOption: true },
+          },
+          (argv) => {
+            const streams = db.listStreams(argv.project);
+            console.table(streams);
+          }
+        )
+        .command(
+          "add <type> <name>",
+          "Add stream",
+          {
+            project: { type: "string", demandOption: true },
+            container: { type: "string" },
+          },
+          async (argv) => {
+            const config: Record<string, unknown> = {};
+            if (argv.type === "docker" && argv.container) {
+              config.container = argv.container;
+            }
+            const s = await db.createStream(
+              argv.project,
+              argv.type as string,
+              argv.name as string,
+              config
+            );
+            console.log(`Stream created: ${s.id}`);
+            console.log(`Token: ${s.token}`);
+          }
+        )
+        .command(
+          "token <streamId>",
+          "Get token for stream",
+          {},
+          async (argv) => {
+            const token = await auth.createStreamToken(argv.streamId as string);
+            console.log(`Token: ${token}`);
+          }
+        )
+        .command("delete <id>", "Delete stream", {}, (argv) => {
+          db.deleteStream(argv.id as string);
+          console.log(`Stream deleted: ${argv.id}`);
+        });
+    })
+    .demandCommand(1)
+    .strict()
+    .help()
+    .parse();
 }
 
-main().catch(err => {
-    console.error(err);
-    process.exit(1);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });

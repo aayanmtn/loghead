@@ -18,7 +18,7 @@
     "loghead": "./dist/cli_main.js"
   },
   "scripts": {
-    "start": "tsx src/cli_main.ts start",
+    "start": "tsx src/cli_main.ts start --headless",
     "ui": "tsx src/cli_main.ts ui",
     "build": "tsc",
     "dev": "tsx watch src/cli_main.ts",

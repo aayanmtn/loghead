@@ -16,15 +16,26 @@ const db = new db_1.DbService();
 const auth = new auth_1.AuthService();
 async function main() {
     const argv = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-        .command(["start", "$0"], "Start API Server", {}, async () => {
+        .command(["start", "$0"], "Start API Server", (yargs) => yargs.option("headless", {
+        type: "boolean",
+        default: false,
+        describe: "Run without terminal UI",
+    }), async (argv) => {
         console.log("Ensuring database is initialized...");
         await (0, migrate_1.migrate)(false); // Run migrations silently
         const token = await auth.getOrCreateMcpToken();
-        // Start API Server (this sets up express listen)
+        // Start API Server (Express)
         await (0, server_1.startApiServer)(db);
-        // Start TUI (this will clear screen and take over)
-        await (0, main_1.startTui)(db, token);
-        process.exit(0);
+        if (!argv.headless) {
+            // Normal CLI behavior
+            await (0, main_1.startTui)(db, token);
+            process.exit(0);
+        }
+        // Headless mode
+        const port = process.env.PORT || 4567;
+        console.log("Loghead running in headless mode");
+        console.log(`PORT=${port}`);
+        console.log(`MCP_TOKEN=${token}`);
     })
         .command("projects <cmd> [name]", "Manage projects", (yargs) => {
         yargs
@@ -44,14 +55,14 @@ async function main() {
         .command("streams <cmd> [type] [name]", "Manage streams", (yargs) => {
         yargs
             .command("list", "List streams", {
-            project: { type: "string", demandOption: true }
+            project: { type: "string", demandOption: true },
         }, (argv) => {
             const streams = db.listStreams(argv.project);
             console.table(streams);
         })
             .command("add <type> <name>", "Add stream", {
             project: { type: "string", demandOption: true },
-            container: { type: "string" }
+            container: { type: "string" },
         }, async (argv) => {
             const config = {};
             if (argv.type === "docker" && argv.container) {
@@ -75,7 +86,7 @@ async function main() {
         .help()
         .parse();
 }
-main().catch(err => {
+main().catch((err) => {
     console.error(err);
     process.exit(1);
 });
