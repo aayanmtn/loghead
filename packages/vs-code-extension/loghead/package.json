@@ -13,6 +13,7 @@
   "activationEvents": [
     "onView:loghead.server",
     "onView:loghead.projects",
+    "onView:loghead.logs",
     "onView:loghead.actions"
   ],
   "main": "./out/extension.js",
@@ -35,6 +36,10 @@
         {
           "id": "loghead.projects",
           "name": "Projects"
+        },
+        {
+          "id": "loghead.logs",
+          "name": "Logs"
         },
         {
           "id": "loghead.actions",

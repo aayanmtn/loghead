@@ -39,18 +39,22 @@ const serverView_1 = require("./views/serverView");
 const serverState_1 = require("./state/serverState");
 const projectsView_1 = require("./views/projectsView");
 const actionsView_1 = require("./views/actionsView");
+const logView_1 = require("./views/logView");
 const coreProcess_1 = require("./backend/coreProcess");
 const api = __importStar(require("./backend/api"));
 function activate(context) {
     const serverView = new serverView_1.ServerView();
     const projectsView = new projectsView_1.ProjectsView();
     const actionsView = new actionsView_1.ActionsView();
+    const logsView = new logView_1.LogsView();
     context.subscriptions.push(vscode.window.createTreeView("loghead.server", {
         treeDataProvider: serverView,
     }), vscode.window.createTreeView("loghead.projects", {
         treeDataProvider: projectsView,
     }), vscode.window.createTreeView("loghead.actions", {
         treeDataProvider: actionsView,
+    }), vscode.window.createTreeView("loghead.logs", {
+        treeDataProvider: logsView,
     }));
     context.subscriptions.push(vscode.commands.registerCommand("loghead.start", () => {
         //   serverState.running = true;
@@ -61,6 +65,7 @@ function activate(context) {
             serverView.refresh();
             projectsView.refresh();
             actionsView.refresh();
+            logsView.refresh();
         });
     }), vscode.commands.registerCommand("loghead.stop", () => {
         //   serverState.running = false;
@@ -69,6 +74,7 @@ function activate(context) {
         //   serverView.refresh();
         (0, coreProcess_1.stopCore)(() => {
             serverView.refresh();
+            logsView.refresh();
         });
     }), 
     // >> Command to copy MCP token
@@ -183,11 +189,21 @@ function activate(context) {
     }), 
     // >> Command to copy stream ingest command
     vscode.commands.registerCommand("loghead.copyStreamIngest", async (node) => {
+        if (!serverState_1.serverState.running) {
+            vscode.window.showErrorMessage("Loghead is not running");
+            return;
+        }
         if (!node?.id)
             return;
-        const command = `"dev:log": "<APP_RUNNING_SCRIPT> | npx @loghead/terminal --token ${node.id}"`;
-        await vscode.env.clipboard.writeText(command);
-        vscode.window.showInformationMessage("Stream ingest command copied");
+        try {
+            const token = await api.getStreamToken(node.id);
+            const command = `"dev:log": "<APP_RUNNING_SCRIPT> | npx @loghead/terminal --token ${token}"`;
+            await vscode.env.clipboard.writeText(command);
+            vscode.window.showInformationMessage(`Stream ingest command copied for ${node.name}`);
+        }
+        catch (e) {
+            vscode.window.showErrorMessage(String(e));
+        }
     }), 
     // >> Command to delete a stream
     vscode.commands.registerCommand("loghead.deleteStream", async (node) => {
@@ -228,6 +244,43 @@ function activate(context) {
         catch (e) {
             vscode.window.showErrorMessage(String(e));
         }
+    }), 
+    // >> Command to select logs project
+    vscode.commands.registerCommand("loghead.selectLogsProject", async () => {
+        const projects = (await api.fetchProjects());
+        if (!projects.length) {
+            vscode.window.showInformationMessage("No projects found");
+            return;
+        }
+        const pick = await vscode.window.showQuickPick(projects.map((p) => ({
+            label: p.name,
+            description: p.id,
+        })), { placeHolder: "Select a project" });
+        if (!pick)
+            return;
+        logsView.setProject(pick.description);
+        logsView.refresh();
+    }), 
+    // >> Command to select logs stream
+    vscode.commands.registerCommand("loghead.selectLogsStream", async () => {
+        if (!logsView.hasProject()) {
+            vscode.window.showWarningMessage("Select a project first");
+            return;
+        }
+        const projects = (await api.fetchProjects());
+        const project = projects.find((p) => p.id === logsView.projectId);
+        if (!project?.streams?.length) {
+            vscode.window.showInformationMessage("No streams found");
+            return;
+        }
+        const pick = await vscode.window.showQuickPick(project.streams.map((s) => ({
+            label: s.name,
+            description: s.type,
+            streamId: s.id,
+        })), { placeHolder: "Select a stream" });
+        if (!pick)
+            return;
+        logsView.setStream(pick.streamId);
     }), 
     // >> Command to refresh projects view
     vscode.commands.registerCommand("loghead.refresh", () => {

@@ -86,3 +86,16 @@ export async function deleteProject(projectId: string) {
 
   return res.json();
 }
+
+// >> Fetch logs
+export async function fetchLogs(streamId: string, limit = 50) {
+  const res = await fetch(
+    `${baseUrl()}/api/logs?streamId=${streamId}&limit=${limit}`
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch logs");
+  }
+
+  return res.json();
+}

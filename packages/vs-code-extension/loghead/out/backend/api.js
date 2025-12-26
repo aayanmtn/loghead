@@ -6,6 +6,7 @@ exports.createStream = createStream;
 exports.getStreamToken = getStreamToken;
 exports.deleteStream = deleteStream;
 exports.deleteProject = deleteProject;
+exports.fetchLogs = fetchLogs;
 const serverState_1 = require("../state/serverState");
 const baseUrl = () => `http://localhost:${serverState_1.serverState.port}`;
 function headers() {
@@ -73,6 +74,14 @@ async function deleteProject(projectId) {
     });
     if (!res.ok) {
         throw new Error("Failed to delete project");
+    }
+    return res.json();
+}
+// >> Fetch logs
+async function fetchLogs(streamId, limit = 50) {
+    const res = await fetch(`${baseUrl()}/api/logs?streamId=${streamId}&limit=${limit}`);
+    if (!res.ok) {
+        throw new Error("Failed to fetch logs");
     }
     return res.json();
 }

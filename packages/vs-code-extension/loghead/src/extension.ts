@@ -3,6 +3,7 @@ import { ServerView } from "./views/serverView";
 import { serverState } from "./state/serverState";
 import { ProjectsView } from "./views/projectsView";
 import { ActionsView } from "./views/actionsView";
+import { LogsView } from "./views/logView";
 import { startCore, stopCore } from "./backend/coreProcess";
 import * as api from "./backend/api";
 
@@ -10,6 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
   const serverView = new ServerView();
   const projectsView = new ProjectsView();
   const actionsView = new ActionsView();
+  const logsView = new LogsView();
 
   context.subscriptions.push(
     vscode.window.createTreeView("loghead.server", {
@@ -20,6 +22,9 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.window.createTreeView("loghead.actions", {
       treeDataProvider: actionsView,
+    }),
+    vscode.window.createTreeView("loghead.logs", {
+      treeDataProvider: logsView,
     })
   );
 
@@ -33,6 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
         serverView.refresh();
         projectsView.refresh();
         actionsView.refresh();
+        logsView.refresh();
       });
     }),
 
@@ -44,6 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       stopCore(() => {
         serverView.refresh();
+        logsView.refresh();
       });
     }),
     // >> Command to copy MCP token
@@ -188,12 +195,22 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "loghead.copyStreamIngest",
       async (node) => {
+        if (!serverState.running) {
+          vscode.window.showErrorMessage("Loghead is not running");
+          return;
+        }
         if (!node?.id) return;
+        try {
+          const token = await api.getStreamToken(node.id);
+          const command = `"dev:log": "<APP_RUNNING_SCRIPT> | npx @loghead/terminal --token ${token}"`;
+          await vscode.env.clipboard.writeText(command);
 
-        const command = `"dev:log": "<APP_RUNNING_SCRIPT> | npx @loghead/terminal --token ${node.id}"`;
-
-        await vscode.env.clipboard.writeText(command);
-        vscode.window.showInformationMessage("Stream ingest command copied");
+          vscode.window.showInformationMessage(
+            `Stream ingest command copied for ${node.name}`
+          );
+        } catch (e) {
+          vscode.window.showErrorMessage(String(e));
+        }
       }
     ),
 
@@ -247,6 +264,59 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (e) {
         vscode.window.showErrorMessage(String(e));
       }
+    }),
+
+    // >> Command to select logs project
+    vscode.commands.registerCommand("loghead.selectLogsProject", async () => {
+      const projects = (await api.fetchProjects()) as any[];
+      if (!projects.length) {
+        vscode.window.showInformationMessage("No projects found");
+        return;
+      }
+
+      const pick = await vscode.window.showQuickPick(
+        projects.map((p: any) => ({
+          label: p.name,
+          description: p.id,
+        })),
+        { placeHolder: "Select a project" }
+      );
+
+      if (!pick) return;
+
+      logsView.setProject(pick.description!);
+      logsView.refresh();
+    }),
+
+    // >> Command to select logs stream
+    vscode.commands.registerCommand("loghead.selectLogsStream", async () => {
+      if (!logsView.hasProject()) {
+        vscode.window.showWarningMessage("Select a project first");
+        return;
+      }
+
+      const projects = (await api.fetchProjects()) as any[];
+      const project = projects.find((p: any) => p.id === logsView.projectId);
+
+      if (!project?.streams?.length) {
+        vscode.window.showInformationMessage("No streams found");
+        return;
+      }
+
+      const pick = await vscode.window.showQuickPick<
+        vscode.QuickPickItem & { streamId: string }
+      >(
+        project.streams.map((s: any) => ({
+          label: s.name,
+          description: s.type,
+          streamId: s.id,
+        })),
+        { placeHolder: "Select a stream" }
+      );
+
+      if (!pick) return;
+
+      logsView.setStream(pick.streamId);
     }),
 
     // >> Command to refresh projects view
