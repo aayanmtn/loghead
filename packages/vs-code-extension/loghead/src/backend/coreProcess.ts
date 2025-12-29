@@ -29,7 +29,7 @@ export function startCore(
     vscode.window.showWarningMessage("Loghead already running");
     return;
   }
-
+  // ! Spawn core process in headless mode(development only)
   coreProcess = spawn("node", [coreBin, "start", "--headless"], {
     shell: false,
     env: {
@@ -37,6 +37,19 @@ export function startCore(
       LOGHEAD_ENV: "vscode",
     },
   });
+
+  // ! Spawn core process in headless mode(using npx - production)
+  //   coreProcess = spawn(
+  //   "npx",
+  //   ["-y", "@loghead/core", "start", "--headless"],
+  //   {
+  //     shell: true,
+  //     env: {
+  //       ...process.env,
+  //       LOGHEAD_ENV: "vscode",
+  //     },
+  //   }
+  // );
 
   coreProcess.stdout.on("data", (data) => {
     console.log("[CORE STDOUT]", data.toString());
