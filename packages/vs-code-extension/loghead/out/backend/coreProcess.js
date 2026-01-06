@@ -68,17 +68,13 @@ function startCore(context, onUpdate) {
         },
     });
     // ! Spawn core process in headless mode(using npx - production)
-    //   coreProcess = spawn(
-    //   "npx",
-    //   ["-y", "@loghead/core", "start", "--headless"],
-    //   {
-    //     shell: true,
-    //     env: {
-    //       ...process.env,
-    //       LOGHEAD_ENV: "vscode",
-    //     },
-    //   }
-    // );
+    // coreProcess = spawn("npx", ["-y", "@loghead/core", "start", "--headless"], {
+    //   shell: true,
+    //   env: {
+    //     ...process.env,
+    //     LOGHEAD_ENV: "vscode",
+    //   },
+    // });
     coreProcess.stdout.on("data", (data) => {
         console.log("[CORE STDOUT]", data.toString());
         const output = data.toString();
