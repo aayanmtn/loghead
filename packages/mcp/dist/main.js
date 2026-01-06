@@ -46,7 +46,7 @@ async function main() {
         }
     });
     // Tools
-    server.tool("list_projects", "Lists all the projects and their streams", {}, // No args
+    server.tool("list_projects", "Lists all the projects and their data streams in Loghead. Use this to discover available logs and streams.", {}, // No args
     async () => {
         try {
             const projects = await fetchApi("/projects");
@@ -65,12 +65,12 @@ async function main() {
             return { content: [{ type: "text", text: `Error: ${error}` }], isError: true };
         }
     });
-    server.tool("query_logs", "Search or retrieve logs from a specific stream", {
-        streamId: zod_1.z.string().describe("The Stream ID"),
-        query: zod_1.z.string().optional().describe("Search query"),
-        limit: zod_1.z.number().optional().describe("Max logs to return (deprecated, use pageSize)"),
-        page: zod_1.z.number().optional().default(1).describe("Page number"),
-        pageSize: zod_1.z.number().optional().default(100).describe("Logs per page")
+    server.tool("query_logs", "Search or retrieve logs from a specific data stream using semantic search or simple retrieval.", {
+        streamId: zod_1.z.string().describe("The unique identifier of the stream to query. Get this from list_projects."),
+        query: zod_1.z.string().optional().describe("Natural language search query for semantic search (e.g. 'find errors in auth'). If omitted, returns recent logs."),
+        limit: zod_1.z.number().optional().describe("Deprecated. Use pageSize instead."),
+        page: zod_1.z.number().optional().default(1).describe("Page number for pagination (starts at 1)."),
+        pageSize: zod_1.z.number().optional().default(100).describe("Number of logs to return per page (max 1000).")
     }, async ({ streamId, query, limit, page, pageSize }) => {
         try {
             let url = `/logs?streamId=${streamId}&page=${page}&pageSize=${pageSize}`;
@@ -85,7 +85,9 @@ async function main() {
             return { content: [{ type: "text", text: `Error: ${error}` }], isError: true };
         }
     });
-    server.tool("create_project", "Create a new project", { name: zod_1.z.string() }, async ({ name }) => {
+    server.tool("create_project", "Create a new project container for organizing log streams.", {
+        name: zod_1.z.string().describe("The name of the new project (e.g. 'My App', 'Backend Services')")
+    }, async ({ name }) => {
         try {
             const project = await fetchApi("/projects", {
                 method: "POST",
@@ -98,7 +100,9 @@ async function main() {
             return { content: [{ type: "text", text: `Error: ${e}` }], isError: true };
         }
     });
-    server.tool("delete_project", "Delete a project", { id: zod_1.z.string() }, async ({ id }) => {
+    server.tool("delete_project", "Delete a project and all its associated streams.", {
+        id: zod_1.z.string().describe("The ID of the project to delete")
+    }, async ({ id }) => {
         try {
             await fetchApi(`/projects/${id}`, { method: "DELETE" });
             return { content: [{ type: "text", text: `Project deleted` }] };
@@ -107,11 +111,11 @@ async function main() {
             return { content: [{ type: "text", text: `Error: ${e}` }], isError: true };
         }
     });
-    server.tool("create_stream", "Create a new stream", {
-        projectId: zod_1.z.string(),
-        type: zod_1.z.string(),
-        name: zod_1.z.string(),
-        config: zod_1.z.any().optional()
+    server.tool("create_stream", "Create a new data stream within a project to ingest logs.", {
+        projectId: zod_1.z.string().describe("The ID of the parent project"),
+        type: zod_1.z.string().describe("The type of stream (e.g. 'browser', 'python', 'docker', 'terminal')"),
+        name: zod_1.z.string().describe("A friendly name for the stream"),
+        config: zod_1.z.any().optional().describe("Optional configuration object specific to the stream type")
     }, async ({ projectId, type, name, config }) => {
         try {
             const stream = await fetchApi("/streams/create", {
@@ -125,7 +129,9 @@ async function main() {
             return { content: [{ type: "text", text: `Error: ${e}` }], isError: true };
         }
     });
-    server.tool("delete_stream", "Delete a stream", { id: zod_1.z.string() }, async ({ id }) => {
+    server.tool("delete_stream", "Delete a specific data stream.", {
+        id: zod_1.z.string().describe("The ID of the stream to delete")
+    }, async ({ id }) => {
         try {
             await fetchApi(`/streams/${id}`, { method: "DELETE" });
             return { content: [{ type: "text", text: `Stream deleted` }] };

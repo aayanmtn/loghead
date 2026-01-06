@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
 import { DbService } from "../services/db";
 import { AuthService } from "../services/auth";
 import chalk from "chalk";
@@ -13,10 +14,24 @@ export async function startApiServer(db: DbService) {
     app.use(cors());
     app.use(express.json());
 
+    // Serve static frontend files
+    // Determine path based on whether we are running in src (dev) or dist (prod)
+    let publicPath = path.join(__dirname, "../public");
+    if (!require("fs").existsSync(publicPath)) {
+        // Try looking in dist/public if we are in src
+        publicPath = path.join(__dirname, "../../dist/public");
+    }
+
+    if (require("fs").existsSync(publicPath)) {
+        app.use(express.static(publicPath));
+    } else {
+        console.warn(chalk.yellow("Frontend build not found. Run 'npm run build' in packages/core/frontend to build the UI."));
+    }
+
     await auth.initialize();
 
-    console.log(chalk.bold.green(`\n💻 API server running on:`));
-    console.log(chalk.green(`http://localhost:${port}`));
+    // console.log(chalk.bold.green(`\n💻 API server running on:`));
+    // console.log(chalk.green(`http://localhost:${port}`));
 
     // Helper to parse OTLP attributes
     const parseOtlpAttributes = (attributes: any[]) => {
@@ -149,6 +164,18 @@ export async function startApiServer(db: DbService) {
         }
     });
 
+    app.get("/api/connection", async (req, res) => {
+        try {
+            const token = await auth.getOrCreateMcpToken();
+            res.json({
+                token,
+                mcpUrl: `http://localhost:${port}/sse` // Assuming default MCP behavior or just provide base URL
+            });
+        } catch (e) {
+            res.status(500).json({ error: String(e) });
+        }
+    });
+
     app.get("/api/projects", (req, res) => {
         const projects = db.listProjects();
         res.json(projects);
@@ -240,6 +267,19 @@ export async function startApiServer(db: DbService) {
             logs = db.getRecentLogs(streamId, limit, offset);
         }
         res.json(logs);
+    });
+
+    // SPA fallback
+    app.get("*", (req, res) => {
+        if (req.path.startsWith("/api")) {
+            return res.status(404).json({ error: "Not Found" });
+        }
+
+        if (require("fs").existsSync(path.join(publicPath, "index.html"))) {
+            res.sendFile(path.join(publicPath, "index.html"));
+        } else {
+            res.status(404).send("Dashboard not found. Please build the frontend.");
+        }
     });
 
     app.listen(port, () => {

@@ -5,9 +5,9 @@ import { DbService } from "./services/db";
 import { startApiServer } from "./api/server";
 import { migrate } from "./db/migrate";
 // import { ensureInfrastructure } from "./utils/startup"; // Might need adjustment
-import { startTui } from "./ui/main";
 import { AuthService } from "./services/auth";
 import chalk from "chalk";
+import open from "open";
 
 const db = new DbService();
 const auth = new AuthService();
@@ -15,7 +15,7 @@ const auth = new AuthService();
 async function main() {
     const argv = await yargs(hideBin(process.argv))
         .command(["start", "$0"], "Start API Server", {}, async () => {
-            console.log("Ensuring database is initialized...");
+            // console.log("Ensuring database is initialized...");
             await migrate(false); // Run migrations silently
 
             const token = await auth.getOrCreateMcpToken();
@@ -23,9 +23,29 @@ async function main() {
             // Start API Server (this sets up express listen)
             await startApiServer(db);
 
-            // Start TUI (this will clear screen and take over)
-            await startTui(db, token);
-            process.exit(0);
+            console.clear();
+            console.log(chalk.bold.green(`
+   __                 __                    __ 
+  / /  ___  ___ ____ / /  ___ ___ ____  ___/ / 
+ / /__/ _ \\/ _ \`/ _ \\/ _ \\/ -_) _ \`/ _ \\/ _  /  
+/____/\\___/\\_, /_//_/_//_/\\__/\\_,_/\\___/\\_,_/   
+          /___/                                 
+`));
+
+            console.log(chalk.gray("--------------------------------------------------"));
+            console.log(chalk.bold(" 🟢 Loghead is running"));
+            console.log(chalk.gray("--------------------------------------------------"));
+            console.log("");
+            console.log(chalk.bold(" 🖥️  Dashboard : ") + chalk.cyan("http://localhost:4567"));
+            console.log(chalk.bold(" 🔌 MCP Server: ") + chalk.cyan("http://localhost:4567/sse"));
+            console.log("");
+            console.log(chalk.bold(" 🔑 MCP Token : "));
+            console.log(chalk.yellow(token));
+            console.log("");
+            console.log(chalk.gray("--------------------------------------------------"));
+            console.log(chalk.gray(" Press Ctrl+C to stop"));
+
+            open("http://localhost:4567");
         })
         .command("projects <cmd> [name]", "Manage projects", (yargs) => {
             yargs
