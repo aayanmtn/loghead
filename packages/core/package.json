@@ -11,7 +11,7 @@
     "url": "https://github.com/onvo-ai/loghead/issues"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org"
   },
   "main": "dist/index.js",
   "bin": {
