@@ -175,6 +175,7 @@ export async function startApiServer(db: DbService) {
     }
   });
 
+  //   Added this endpoint to fetch system token
   app.get("/api/system/token", async (_req, res) => {
     try {
       const token = await auth.getOrCreateMcpToken();
