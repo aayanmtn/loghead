@@ -12,6 +12,13 @@ for (const pkg of packages) {
     console.log(`\n>>> Building ${pkg}...`);
     const pkgDir = path.join(packagesDir, pkg);
     try {
+        // Clean dist folder to avoid hard link issues
+        const distPath = path.join(pkgDir, 'dist');
+        if (fs.existsSync(distPath)) {
+            console.log(`  Cleaning dist folder...`);
+            execSync(`rm -rf ${distPath}`, { stdio: 'inherit' });
+        }
+        
         execSync('npm install', { cwd: pkgDir, stdio: 'inherit' });
         execSync('npm run build', { cwd: pkgDir, stdio: 'inherit' });
     } catch (e) {
