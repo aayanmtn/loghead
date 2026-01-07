@@ -201,6 +201,10 @@ export async function startApiServer(db: DbService) {
     const projects = db.listProjects();
     res.json(projects);
   });
+  app.get("/api/system/token", async (_req, res) => {
+    const token = await auth.getOrCreateMcpToken();
+    res.json({ token });
+  });
 
   app.post("/api/projects", (req, res) => {
     const { name } = req.body;
