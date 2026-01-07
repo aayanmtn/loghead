@@ -175,15 +175,6 @@ export async function startApiServer(db: DbService) {
     }
   });
 
-  app.get("/api/system/token", async (_req, res) => {
-    try {
-      const token = await auth.getOrCreateMcpToken();
-      res.json({ token });
-    } catch (e) {
-      res.status(500).json({ error: String(e) });
-    }
-  });
-
   app.get("/api/connection", async (req, res) => {
     try {
       const token = await auth.getOrCreateMcpToken();
@@ -199,6 +190,10 @@ export async function startApiServer(db: DbService) {
   app.get("/api/projects", (req, res) => {
     const projects = db.listProjects();
     res.json(projects);
+  });
+  app.get("/api/system/token", async (_req, res) => {
+    const token = await auth.getOrCreateMcpToken();
+    res.json({ token });
   });
 
   app.post("/api/projects", (req, res) => {
