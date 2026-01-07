@@ -16,13 +16,7 @@ export function startCore(
   }
 
   const coreBin = "/home/soman/soman-loghead/packages/core/dist/cli_main.js";
-  // coreProcess = spawn("npx", ["-y", "@loghead/core", "start"], {
-  //   shell: true,
-  //   env: {
-  //     ...process.env,
-  //     LOGHEAD_ENV: "vscode",
-  //   },
-  // });
+
   console.log("Resolved core path:", coreBin);
 
   if (!fs.existsSync(coreBin)) {
@@ -34,14 +28,20 @@ export function startCore(
     vscode.window.showWarningMessage("Loghead already running");
     return;
   }
-  coreProcess = spawn("node", [coreBin, "start"], {
-    shell: false,
+  // coreProcess = spawn("node", [coreBin, "start"], {
+  //   shell: false,
+  //   env: {
+  //     ...process.env,
+  //     LOGHEAD_ENV: "vscode",
+  //   },
+  // });
+  coreProcess = spawn("npx", ["-y", "@loghead/core", "start"], {
+    shell: true,
     env: {
       ...process.env,
       LOGHEAD_ENV: "vscode",
     },
   });
-
   serverState.port = 4567;
 
   waitForServer()
