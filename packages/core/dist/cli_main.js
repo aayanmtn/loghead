@@ -10,32 +10,40 @@ const db_1 = require("./services/db");
 const server_1 = require("./api/server");
 const migrate_1 = require("./db/migrate");
 // import { ensureInfrastructure } from "./utils/startup"; // Might need adjustment
-const main_1 = require("./ui/main");
 const auth_1 = require("./services/auth");
+const chalk_1 = __importDefault(require("chalk"));
+const open_1 = __importDefault(require("open"));
 const db = new db_1.DbService();
 const auth = new auth_1.AuthService();
 async function main() {
     const argv = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-        .command(["start", "$0"], "Start API Server", (yargs) => yargs.option("headless", {
-        type: "boolean",
-        default: false,
-        describe: "Run without terminal UI",
-    }), async (argv) => {
-        console.log("Ensuring database is initialized...");
+        .command(["start", "$0"], "Start API Server", {}, async () => {
+        // console.log("Ensuring database is initialized...");
         await (0, migrate_1.migrate)(false); // Run migrations silently
         const token = await auth.getOrCreateMcpToken();
-        // Start API Server (Express)
+        // Start API Server (this sets up express listen)
         await (0, server_1.startApiServer)(db);
-        if (!argv.headless) {
-            // Normal CLI behavior
-            await (0, main_1.startTui)(db, token);
-            process.exit(0);
-        }
-        // Headless mode
-        const port = process.env.PORT || 4567;
-        console.log("Loghead running in headless mode");
-        console.log(`PORT=${port}`);
-        console.log(`MCP_TOKEN=${token}`);
+        console.clear();
+        console.log(chalk_1.default.bold.green(`
+   __                 __                    __ 
+  / /  ___  ___ ____ / /  ___ ___ ____  ___/ / 
+ / /__/ _ \\/ _ \`/ _ \\/ _ \\/ -_) _ \`/ _ \\/ _  /  
+/____/\\___/\\_, /_//_/_//_/\\__/\\_,_/\\___/\\_,_/   
+          /___/                                 
+`));
+        console.log(chalk_1.default.gray("--------------------------------------------------"));
+        console.log(chalk_1.default.bold(" 🟢 Loghead is running"));
+        console.log(chalk_1.default.gray("--------------------------------------------------"));
+        console.log("");
+        console.log(chalk_1.default.bold(" 🖥️  Dashboard : ") + chalk_1.default.cyan("http://localhost:4567"));
+        console.log(chalk_1.default.bold(" 🔌 MCP Server: ") + chalk_1.default.cyan("http://localhost:4567/sse"));
+        console.log("");
+        console.log(chalk_1.default.bold(" 🔑 MCP Token : "));
+        console.log(chalk_1.default.yellow(token));
+        console.log("");
+        console.log(chalk_1.default.gray("--------------------------------------------------"));
+        console.log(chalk_1.default.gray(" Press Ctrl+C to stop"));
+        (0, open_1.default)("http://localhost:4567");
     })
         .command("projects <cmd> [name]", "Manage projects", (yargs) => {
         yargs

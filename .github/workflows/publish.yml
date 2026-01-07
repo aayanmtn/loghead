@@ -1,13 +1,12 @@
 name: Publish Packages
 
 on:
-  release:
-    types: [created]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
@@ -20,16 +19,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18.x'
-          registry-url: 'https://npm.pkg.github.com'
-          # The scope here should match your package names.
-          # If packages are @loghead/..., scope is @loghead.
-          # If @onvo-ai/..., scope is @onvo-ai.
-          # We'll omit specific scope here and rely on package.json publishConfig or .npmrc
+          registry-url: 'https://registry.npmjs.org'
+          
           
       - name: Install Dependencies
-        run: node scripts/build.js # This runs npm install in all packages
+        run: npm install
 
-      - name: Publish
-        run: node scripts/deploy.js
+      - name: Build Packages
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm run deploy
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_GAT }}

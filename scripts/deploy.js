@@ -13,7 +13,7 @@ for (const pkg of packages) {
     const pkgDir = path.join(packagesDir, pkg);
     try {
         // Use --access public for scoped packages
-        execSync('npm publish --access public', { cwd: pkgDir, stdio: 'inherit' });
+         execSync('npm publish --registry https://registry.npmjs.org --access public', { cwd: pkgDir, stdio: 'inherit' });
     } catch (e) {
         console.error(`Failed to deploy ${pkg} (might be already published)`);
         // Don't exit, try next package

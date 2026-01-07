@@ -8,8 +8,7 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:4567/*",
-    "<all_urls>"
+    "http://localhost:4567/*"
   ],
   "action": {
     "default_popup": "popup.html"

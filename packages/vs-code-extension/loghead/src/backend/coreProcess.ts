@@ -3,21 +3,26 @@ import * as vscode from "vscode";
 import { serverState } from "../state/serverState";
 import * as path from "path";
 import * as fs from "fs";
+
 let coreProcess: ChildProcessWithoutNullStreams | null = null;
 
 export function startCore(
   context: vscode.ExtensionContext,
   onUpdate: () => void
 ) {
-  //   const coreBin = path.join(
-  //     context.extensionPath,
-  //     "..",
-  //     "..",
-  //     "core",
-  //     "dist",
-  //     "cli_main.js"
-  //   );
+  if (coreProcess) {
+    vscode.window.showWarningMessage("Loghead already running");
+    return;
+  }
+
   const coreBin = "/home/soman/soman-loghead/packages/core/dist/cli_main.js";
+  // coreProcess = spawn("npx", ["-y", "@loghead/core", "start"], {
+  //   shell: true,
+  //   env: {
+  //     ...process.env,
+  //     LOGHEAD_ENV: "vscode",
+  //   },
+  // });
   console.log("Resolved core path:", coreBin);
 
   if (!fs.existsSync(coreBin)) {
@@ -29,8 +34,7 @@ export function startCore(
     vscode.window.showWarningMessage("Loghead already running");
     return;
   }
-  // ! Spawn core process in headless mode(development only)
-  coreProcess = spawn("node", [coreBin, "start", "--headless"], {
+  coreProcess = spawn("node", [coreBin, "start"], {
     shell: false,
     env: {
       ...process.env,
@@ -38,40 +42,16 @@ export function startCore(
     },
   });
 
-  // ! Spawn core process in headless mode(using npx - production)
-  // coreProcess = spawn("npx", ["-y", "@loghead/core", "start", "--headless"], {
-  //   shell: true,
-  //   env: {
-  //     ...process.env,
-  //     LOGHEAD_ENV: "vscode",
-  //   },
-  // });
+  serverState.port = 4567;
 
-  coreProcess.stdout.on("data", (data) => {
-    console.log("[CORE STDOUT]", data.toString());
-    const output = data.toString();
-
-    // Parse PORT
-    const portMatch = output.match(/PORT=(\d+)/);
-    if (portMatch) {
-      serverState.port = Number(portMatch[1]);
-    }
-
-    // Parse MCP token
-    const tokenMatch = output.match(/MCP_TOKEN=(.+)/);
-    if (tokenMatch) {
-      serverState.mcpToken = tokenMatch[1].trim();
+  waitForServer()
+    .then(fetchSystemToken)
+    .then((token) => {
+      serverState.mcpToken = token;
       serverState.running = true;
-    }
-
-    if (serverState.running) {
       onUpdate();
-    }
-  });
-
-  coreProcess.stderr.on("data", (data) => {
-    console.error("[Loghead Core]", data.toString());
-  });
+    })
+    .catch((e) => vscode.window.showErrorMessage(String(e)));
 
   coreProcess.on("exit", () => {
     serverState.running = false;
@@ -80,6 +60,24 @@ export function startCore(
     coreProcess = null;
     onUpdate();
   });
+}
+
+async function waitForServer() {
+  for (let i = 0; i < 10; i++) {
+    try {
+      const res = await fetch("http://localhost:4567/api/projects");
+      if (res.ok) return;
+    } catch {}
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error("Loghead failed to start");
+}
+
+async function fetchSystemToken(): Promise<string> {
+  const res = await fetch("http://localhost:4567/api/system/token");
+  if (!res.ok) throw new Error("Failed to fetch MCP token");
+  const data = (await res.json()) as { token: string };
+  return data.token;
 }
 
 export function stopCore(onUpdate: () => void) {

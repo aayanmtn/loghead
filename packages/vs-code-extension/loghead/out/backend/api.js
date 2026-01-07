@@ -8,7 +8,7 @@ exports.deleteStream = deleteStream;
 exports.deleteProject = deleteProject;
 exports.fetchLogs = fetchLogs;
 const serverState_1 = require("../state/serverState");
-const baseUrl = () => `http://localhost:${serverState_1.serverState.port}`;
+const baseUrl = () => `http://localhost:${serverState_1.serverState.port ?? 4567}`;
 function headers() {
     const h = {
         "Content-Type": "application/json",

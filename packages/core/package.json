@@ -1,6 +1,6 @@
 {
   "name": "@loghead/core",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "Core API and Database for Loghead",
   "repository": {
     "type": "git",
@@ -11,8 +11,12 @@
     "url": "https://github.com/onvo-ai/loghead/issues"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org"
   },
+  "files": [
+    "dist",
+    "build/npm"
+  ],
   "main": "dist/index.js",
   "bin": {
     "loghead": "./dist/cli_main.js"
@@ -20,7 +24,8 @@
   "scripts": {
     "start": "tsx src/cli_main.ts start --headless",
     "ui": "tsx src/cli_main.ts ui",
-    "build": "tsc",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "build": "npm run build:frontend && tsc",
     "dev": "tsx watch src/cli_main.ts",
     "deploy": "npm publish --access public"
   },
@@ -34,6 +39,7 @@
     "inquirer": "^9.2.14",
     "jsonwebtoken": "^9.0.2",
     "ollama": "^0.5.9",
+    "open": "^8.4.2",
     "sqlite-vec": "^0.1.0",
     "yargs": "^17.7.2"
   },

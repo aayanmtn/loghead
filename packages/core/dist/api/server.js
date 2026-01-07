@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.startApiServer = startApiServer;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const path_1 = __importDefault(require("path"));
 const auth_1 = require("../services/auth");
 const chalk_1 = __importDefault(require("chalk"));
 const auth = new auth_1.AuthService();
@@ -14,9 +15,22 @@ async function startApiServer(db) {
     const port = process.env.PORT || 4567;
     app.use((0, cors_1.default)());
     app.use(express_1.default.json());
+    // Serve static frontend files
+    // Determine path based on whether we are running in src (dev) or dist (prod)
+    let publicPath = path_1.default.join(__dirname, "../public");
+    if (!require("fs").existsSync(publicPath)) {
+        // Try looking in dist/public if we are in src
+        publicPath = path_1.default.join(__dirname, "../../dist/public");
+    }
+    if (require("fs").existsSync(publicPath)) {
+        app.use(express_1.default.static(publicPath));
+    }
+    else {
+        console.warn(chalk_1.default.yellow("Frontend build not found. Run 'npm run build' in packages/core/frontend to build the UI."));
+    }
     await auth.initialize();
-    console.log(chalk_1.default.bold.green(`\n💻 API server running on:`));
-    console.log(chalk_1.default.green(`http://localhost:${port}`));
+    // console.log(chalk.bold.green(`\n💻 API server running on:`));
+    // console.log(chalk.green(`http://localhost:${port}`));
     // Helper to parse OTLP attributes
     const parseOtlpAttributes = (attributes) => {
         if (!Array.isArray(attributes))
@@ -74,7 +88,7 @@ async function startApiServer(db) {
                                     content = log.body.stringValue;
                                 else if (log.body?.kvlistValue)
                                     content = JSON.stringify(log.body.kvlistValue);
-                                else if (typeof log.body === 'string')
+                                else if (typeof log.body === "string")
                                     content = log.body; // Fallback
                                 const logAttrs = parseOtlpAttributes(log.attributes);
                                 // Merge attributes: Resource > Scope (if any) > Log
@@ -83,7 +97,7 @@ async function startApiServer(db) {
                                     ...logAttrs,
                                     severity: log.severityText || log.severityNumber,
                                     scope: scopeName,
-                                    timestamp: log.timeUnixNano
+                                    timestamp: log.timeUnixNano,
                                 };
                                 if (content) {
                                     await db.addLog(streamId, content, metadata);
@@ -138,6 +152,27 @@ async function startApiServer(db) {
         }
         catch (e) {
             console.error("Ingest error:", e);
+            res.status(500).json({ error: String(e) });
+        }
+    });
+    app.get("/api/system/token", async (_req, res) => {
+        try {
+            const token = await auth.getOrCreateMcpToken();
+            res.json({ token });
+        }
+        catch (e) {
+            res.status(500).json({ error: String(e) });
+        }
+    });
+    app.get("/api/connection", async (req, res) => {
+        try {
+            const token = await auth.getOrCreateMcpToken();
+            res.json({
+                token,
+                mcpUrl: `http://localhost:${port}/sse`, // Assuming default MCP behavior or just provide base URL
+            });
+        }
+        catch (e) {
             res.status(500).json({ error: String(e) });
         }
     });
@@ -211,7 +246,9 @@ async function startApiServer(db) {
         if (page < 1)
             page = 1;
         let pageSize = parseInt(req.query.pageSize || "100");
-        let limit = req.query.limit ? parseInt(req.query.limit) : pageSize;
+        let limit = req.query.limit
+            ? parseInt(req.query.limit)
+            : pageSize;
         // Enforce max limit
         if (limit > 1000)
             limit = 1000;
@@ -225,6 +262,18 @@ async function startApiServer(db) {
             logs = db.getRecentLogs(streamId, limit, offset);
         }
         res.json(logs);
+    });
+    // SPA fallback
+    app.get("*", (req, res) => {
+        if (req.path.startsWith("/api")) {
+            return res.status(404).json({ error: "Not Found" });
+        }
+        if (require("fs").existsSync(path_1.default.join(publicPath, "index.html"))) {
+            res.sendFile(path_1.default.join(publicPath, "index.html"));
+        }
+        else {
+            res.status(404).send("Dashboard not found. Please build the frontend.");
+        }
     });
     app.listen(port, () => {
         // listening
