@@ -13,6 +13,10 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org"
   },
+  "files": [
+    "dist",
+    "build/npm"
+  ],
   "main": "dist/index.js",
   "bin": {
     "loghead": "./dist/cli_main.js"
