@@ -14,20 +14,6 @@ export function startCore(
     vscode.window.showWarningMessage("Loghead already running");
     return;
   }
-
-  const coreBin = "/home/soman/soman-loghead/packages/core/dist/cli_main.js";
-
-  console.log("Resolved core path:", coreBin);
-
-  if (!fs.existsSync(coreBin)) {
-    vscode.window.showErrorMessage(`Core binary not found:\n${coreBin}`);
-    return;
-  }
-
-  if (coreProcess) {
-    vscode.window.showWarningMessage("Loghead already running");
-    return;
-  }
   // coreProcess = spawn("node", [coreBin, "start"], {
   //   shell: false,
   //   env: {

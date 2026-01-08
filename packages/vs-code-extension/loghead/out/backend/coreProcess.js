@@ -38,32 +38,21 @@ exports.stopCore = stopCore;
 const child_process_1 = require("child_process");
 const vscode = __importStar(require("vscode"));
 const serverState_1 = require("../state/serverState");
-const fs = __importStar(require("fs"));
 let coreProcess = null;
 function startCore(context, onUpdate) {
     if (coreProcess) {
         vscode.window.showWarningMessage("Loghead already running");
         return;
     }
-    const coreBin = "/home/soman/soman-loghead/packages/core/dist/cli_main.js";
-    // coreProcess = spawn("npx", ["-y", "@loghead/core", "start"], {
-    //   shell: true,
+    // coreProcess = spawn("node", [coreBin, "start"], {
+    //   shell: false,
     //   env: {
     //     ...process.env,
     //     LOGHEAD_ENV: "vscode",
     //   },
     // });
-    console.log("Resolved core path:", coreBin);
-    if (!fs.existsSync(coreBin)) {
-        vscode.window.showErrorMessage(`Core binary not found:\n${coreBin}`);
-        return;
-    }
-    if (coreProcess) {
-        vscode.window.showWarningMessage("Loghead already running");
-        return;
-    }
-    coreProcess = (0, child_process_1.spawn)("node", [coreBin, "start"], {
-        shell: false,
+    coreProcess = (0, child_process_1.spawn)("npx", ["-y", "@loghead/core", "start"], {
+        shell: true,
         env: {
             ...process.env,
             LOGHEAD_ENV: "vscode",
