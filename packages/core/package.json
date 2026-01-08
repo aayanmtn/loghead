@@ -10,12 +10,19 @@
   "bugs": {
     "url": "https://github.com/onvo-ai/loghead/issues"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "files": [
+    "dist",
+    "build/npm"
+  ],
   "main": "dist/index.js",
   "bin": {
     "loghead": "./dist/cli_main.js"
   },
   "scripts": {
-    "start": "tsx src/cli_main.ts start",
+    "start": "tsx src/cli_main.ts start --headless",
     "ui": "tsx src/cli_main.ts ui",
     "build:frontend": "cd frontend && npm install && npm run build",
     "build": "npm run build:frontend && tsc",

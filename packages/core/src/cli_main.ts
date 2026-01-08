@@ -31,17 +31,27 @@ async function main() {
 ▀▀▘▝▀ ▗▄▘▘ ▘▝▀▘▝▀▘▝▀▘                                
 `));
 
-            console.log(chalk.gray("--------------------------------------------------"));
+            console.log(
+                chalk.gray("--------------------------------------------------")
+            );
             console.log(chalk.bold(" 🟢 Loghead is running"));
-            console.log(chalk.gray("--------------------------------------------------"));
+            console.log(
+                chalk.gray("--------------------------------------------------")
+            );
             console.log("");
-            console.log(chalk.bold(" 🖥️  Dashboard : ") + chalk.cyan("http://localhost:4567"));
-            console.log(chalk.bold(" 🔌 MCP Server: ") + chalk.cyan("http://localhost:4567/sse"));
+            console.log(
+                chalk.bold(" 🖥️  Dashboard : ") + chalk.cyan("http://localhost:4567")
+            );
+            console.log(
+                chalk.bold(" 🔌 MCP Server: ") + chalk.cyan("http://localhost:4567/sse")
+            );
             console.log("");
             console.log(chalk.bold(" 🔑 MCP Token : "));
             console.log(chalk.yellow(token));
             console.log("");
-            console.log(chalk.gray("--------------------------------------------------"));
+            console.log(
+                chalk.gray("--------------------------------------------------")
+            );
             console.log(chalk.gray(" Press Ctrl+C to stop"));
 
             open("http://localhost:4567");
@@ -63,28 +73,48 @@ async function main() {
         })
         .command("streams <cmd> [type] [name]", "Manage streams", (yargs) => {
             yargs
-                .command("list", "List streams", {
-                    project: { type: "string", demandOption: true }
-                }, (argv) => {
-                    const streams = db.listStreams(argv.project);
-                    console.table(streams);
-                })
-                .command("add <type> <name>", "Add stream", {
-                    project: { type: "string", demandOption: true },
-                    container: { type: "string" }
-                }, async (argv) => {
-                    const config: Record<string, unknown> = {};
-                    if (argv.type === "docker" && argv.container) {
-                        config.container = argv.container;
+                .command(
+                    "list",
+                    "List streams",
+                    {
+                        project: { type: "string", demandOption: true },
+                    },
+                    (argv) => {
+                        const streams = db.listStreams(argv.project);
+                        console.table(streams);
                     }
-                    const s = await db.createStream(argv.project, argv.type as string, argv.name as string, config);
-                    console.log(`Stream created: ${s.id}`);
-                    console.log(`Token: ${s.token}`);
-                })
-                .command("token <streamId>", "Get token for stream", {}, async (argv) => {
-                    const token = await auth.createStreamToken(argv.streamId as string);
-                    console.log(`Token: ${token}`);
-                })
+                )
+                .command(
+                    "add <type> <name>",
+                    "Add stream",
+                    {
+                        project: { type: "string", demandOption: true },
+                        container: { type: "string" },
+                    },
+                    async (argv) => {
+                        const config: Record<string, unknown> = {};
+                        if (argv.type === "docker" && argv.container) {
+                            config.container = argv.container;
+                        }
+                        const s = await db.createStream(
+                            argv.project,
+                            argv.type as string,
+                            argv.name as string,
+                            config
+                        );
+                        console.log(`Stream created: ${s.id}`);
+                        console.log(`Token: ${s.token}`);
+                    }
+                )
+                .command(
+                    "token <streamId>",
+                    "Get token for stream",
+                    {},
+                    async (argv) => {
+                        const token = await auth.createStreamToken(argv.streamId as string);
+                        console.log(`Token: ${token}`);
+                    }
+                )
                 .command("delete <id>", "Delete stream", {}, (argv) => {
                     db.deleteStream(argv.id as string);
                     console.log(`Stream deleted: ${argv.id}`);
@@ -96,7 +126,7 @@ async function main() {
         .parse();
 }
 
-main().catch(err => {
+main().catch((err) => {
     console.error(err);
     process.exit(1);
 });
