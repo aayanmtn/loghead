@@ -63,14 +63,14 @@ async function main() {
         .command("streams <cmd> [type] [name]", "Manage streams", (yargs) => {
         yargs
             .command("list", "List streams", {
-            project: { type: "string", demandOption: true }
+            project: { type: "string", demandOption: true },
         }, (argv) => {
             const streams = db.listStreams(argv.project);
             console.table(streams);
         })
             .command("add <type> <name>", "Add stream", {
             project: { type: "string", demandOption: true },
-            container: { type: "string" }
+            container: { type: "string" },
         }, async (argv) => {
             const config = {};
             if (argv.type === "docker" && argv.container) {
@@ -94,7 +94,7 @@ async function main() {
         .help()
         .parse();
 }
-main().catch(err => {
+main().catch((err) => {
     console.error(err);
     process.exit(1);
 });

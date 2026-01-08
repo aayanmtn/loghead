@@ -88,7 +88,7 @@ async function startApiServer(db) {
                                     content = log.body.stringValue;
                                 else if (log.body?.kvlistValue)
                                     content = JSON.stringify(log.body.kvlistValue);
-                                else if (typeof log.body === 'string')
+                                else if (typeof log.body === "string")
                                     content = log.body; // Fallback
                                 const logAttrs = parseOtlpAttributes(log.attributes);
                                 // Merge attributes: Resource > Scope (if any) > Log
@@ -97,7 +97,7 @@ async function startApiServer(db) {
                                     ...logAttrs,
                                     severity: log.severityText || log.severityNumber,
                                     scope: scopeName,
-                                    timestamp: log.timeUnixNano
+                                    timestamp: log.timeUnixNano,
                                 };
                                 if (content) {
                                     await db.addLog(streamId, content, metadata);
@@ -155,12 +155,21 @@ async function startApiServer(db) {
             res.status(500).json({ error: String(e) });
         }
     });
+    app.get("/api/system/token", async (_req, res) => {
+        try {
+            const token = await auth.getOrCreateMcpToken();
+            res.json({ token });
+        }
+        catch (e) {
+            res.status(500).json({ error: String(e) });
+        }
+    });
     app.get("/api/connection", async (req, res) => {
         try {
             const token = await auth.getOrCreateMcpToken();
             res.json({
                 token,
-                mcpUrl: `http://localhost:${port}/sse` // Assuming default MCP behavior or just provide base URL
+                mcpUrl: `http://localhost:${port}/sse`, // Assuming default MCP behavior or just provide base URL
             });
         }
         catch (e) {
@@ -237,7 +246,9 @@ async function startApiServer(db) {
         if (page < 1)
             page = 1;
         let pageSize = parseInt(req.query.pageSize || "100");
-        let limit = req.query.limit ? parseInt(req.query.limit) : pageSize;
+        let limit = req.query.limit
+            ? parseInt(req.query.limit)
+            : pageSize;
         // Enforce max limit
         if (limit > 1000)
             limit = 1000;
