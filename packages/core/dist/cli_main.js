@@ -25,11 +25,10 @@ async function main() {
         await (0, server_1.startApiServer)(db);
         console.clear();
         console.log(chalk_1.default.bold.green(`
-   __                 __                    __ 
-  / /  ___  ___ ____ / /  ___ ___ ____  ___/ / 
- / /__/ _ \\/ _ \`/ _ \\/ _ \\/ -_) _ \`/ _ \\/ _  /  
-/____/\\___/\\_, /_//_/_//_/\\__/\\_,_/\\___/\\_,_/   
-          /___/                                 
+▌        ▌          ▌
+▌  ▞▀▖▞▀▌▛▀▖▞▀▖▝▀▖▞▀▌
+▌  ▌ ▌▚▄▌▌ ▌▛▀ ▞▀▌▌ ▌
+▀▀▘▝▀ ▗▄▘▘ ▘▝▀▘▝▀▘▝▀▘                                
 `));
         console.log(chalk_1.default.gray("--------------------------------------------------"));
         console.log(chalk_1.default.bold(" 🟢 Loghead is running"));
