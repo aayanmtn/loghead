@@ -3,15 +3,24 @@
   "name": "Loghead Collector",
   "version": "1.0",
   "description": "Collects browser console logs and sends them to Loghead.",
-  "permissions": [
-    "storage",
-    "scripting"
-  ],
-  "host_permissions": [
-    "http://localhost:4567/*"
-  ],
+
+  "icons": {
+    "16": "icon/logo.png",
+    "32": "icon/logo.png",
+    "48": "icon/logo.png",
+    "128": "icon/logo.png"
+  },
+
+  "permissions": ["storage", "scripting"],
+
+  "host_permissions": ["http://localhost:4567/*"],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon/logo.png",
+      "32": "icon/logo.png",
+      "48": "icon/logo.png"
+    }
   },
   "background": {
     "service_worker": "background.js"
