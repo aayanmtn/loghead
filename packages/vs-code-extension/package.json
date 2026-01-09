@@ -13,8 +13,7 @@
   "activationEvents": [
     "onView:loghead.server",
     "onView:loghead.projects",
-    "onView:loghead.logs",
-    "onView:loghead.actions"
+    "onView:loghead.logs"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -40,10 +39,6 @@
         {
           "id": "loghead.logs",
           "name": "Logs"
-        },
-        {
-          "id": "loghead.actions",
-          "name": "Actions"
         }
       ]
     },
@@ -51,6 +46,21 @@
       {
         "command": "loghead.openDashboard",
         "title": "Loghead: Open Dashboard"
+      },
+      {
+        "command": "loghead.createProject",
+        "title": "Create Project",
+        "icon": "$(add)"
+      },
+      {
+        "command": "loghead.createStream",
+        "title": "Create Stream",
+        "icon": "$(add)"
+      },
+      {
+        "command": "loghead.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
       },
       {
         "command": "loghead.deleteProject",
@@ -70,6 +80,18 @@
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "loghead.createProject",
+          "when": "view == loghead.projects",
+          "group": "navigation"
+        },
+        {
+          "command": "loghead.refresh",
+          "when": "view == loghead.projects",
+          "group": "navigation"
+        }
+      ],
       "view/item/context": [
         {
           "command": "loghead.copyStreamToken",

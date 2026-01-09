@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ProjectNode, StreamNode } from "./nodes";
+import { ProjectNode, StreamNode, CreateStreamNode } from "./nodes";
 import { serverState } from "../state/serverState";
 import * as api from "../backend/api";
 
@@ -62,17 +62,14 @@ export class ProjectsView implements vscode.TreeDataProvider<vscode.TreeItem> {
     if (element instanceof ProjectNode) {
       const project = this.projects.find((p) => p.id === element.id);
 
-      if (!project || !project.streams) return [];
+      if (!project) return [];
 
-      if (project.streams.length === 0) {
-        const empty = new vscode.TreeItem("No streams found");
-        empty.iconPath = new vscode.ThemeIcon("info");
-        return [empty];
-      }
-
-      return project.streams.map(
+      const createStreamNode = new CreateStreamNode(project.id);
+      const streamNodes = (project.streams || []).map(
         (s: any) => new StreamNode(s.id, s.name, s.type)
       );
+
+      return [createStreamNode, ...streamNodes];
     }
 
     return [];

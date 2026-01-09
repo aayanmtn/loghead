@@ -6,7 +6,6 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  private selectedProjectId: string | null = null;
   private selectedStreamId: string | null = null;
   private logs: any[] = [];
 
@@ -24,16 +23,6 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
     return item;
   }
 
-  // ✅ ADD THIS
-  hasProject(): boolean {
-    return this.selectedProjectId !== null;
-  }
-
-  // ✅ ADD THIS
-  get projectId(): string | null {
-    return this.selectedProjectId;
-  }
-
   async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
     if (!serverState.running) {
       return [new vscode.TreeItem("Loghead server not running")];
@@ -45,7 +34,6 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
     // Root
     if (!element) {
       const items: vscode.TreeItem[] = [
-        this.createActionItem("Select Project", "loghead.selectLogsProject"),
         this.createActionItem("Select Stream", "loghead.selectLogsStream"),
         new vscode.TreeItem("─────────────"),
       ];
@@ -78,12 +66,6 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
     return [];
   }
 
-  setProject(projectId: string) {
-    this.selectedProjectId = projectId;
-    this.selectedStreamId = null;
-    this.logs = [];
-    this.refresh();
-  }
   setStream(streamId: string) {
     this.selectedStreamId = streamId;
     this.loadLogs();
