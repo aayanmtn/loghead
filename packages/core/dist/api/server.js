@@ -155,6 +155,7 @@ async function startApiServer(db) {
             res.status(500).json({ error: String(e) });
         }
     });
+    //   Added this endpoint to fetch system token
     app.get("/api/system/token", async (_req, res) => {
         try {
             const token = await auth.getOrCreateMcpToken();
@@ -179,6 +180,10 @@ async function startApiServer(db) {
     app.get("/api/projects", (req, res) => {
         const projects = db.listProjects();
         res.json(projects);
+    });
+    app.get("/api/system/token", async (_req, res) => {
+        const token = await auth.getOrCreateMcpToken();
+        res.json({ token });
     });
     app.post("/api/projects", (req, res) => {
         const { name } = req.body;
