@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { ServerView } from "./views/serverView";
 import { serverState } from "./state/serverState";
 import { ProjectsView } from "./views/projectsView";
+import { ActionsView } from "./views/actionsView";
 import { LogsView } from "./views/logView";
 import { startCore, stopCore } from "./backend/coreProcess";
 import * as api from "./backend/api";
@@ -15,6 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     const serverView = new ServerView();
     const projectsView = new ProjectsView();
+    const actionsView = new ActionsView();
     const logsView = new LogsView();
 
     context.subscriptions.push(
@@ -24,6 +26,9 @@ export function activate(context: vscode.ExtensionContext) {
       }),
       vscode.window.createTreeView("loghead.projects", {
         treeDataProvider: projectsView,
+      }),
+      vscode.window.createTreeView("loghead.actions", {
+        treeDataProvider: actionsView,
       }),
       vscode.window.createTreeView("loghead.logs", {
         treeDataProvider: logsView,
@@ -36,6 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
         startCore(context, outputChannel, () => {
           serverView.refresh();
           projectsView.refresh();
+          actionsView.refresh();
           logsView.refresh();
         });
       }),
@@ -103,54 +109,43 @@ export function activate(context: vscode.ExtensionContext) {
       }),
 
       // >> Command to create a new stream
-      vscode.commands.registerCommand("loghead.createStream", async (node?: any) => {
+      vscode.commands.registerCommand("loghead.createStream", async () => {
         if (!serverState.running) {
           vscode.window.showErrorMessage("Loghead server is not running");
           return;
         }
 
-        let projectId: string | undefined;
-
-        // If called from the tree view button
-        if (node && node.projectId) {
-          projectId = node.projectId;
-        } else {
-          // If called from command palette or title menu (which we removed, but good to keep robust)
-          let projects: any[] = [];
-          try {
-            projects = (await api.fetchProjects()) as any[];
-          } catch (e) {
-            vscode.window.showErrorMessage(String(e));
-            return;
-          }
-
-          // 🚫 No projects exist
-          if (projects.length === 0) {
-            const create = await vscode.window.showWarningMessage(
-              "No projects found. Create a project first?",
-              "Create Project"
-            );
-
-            if (create === "Create Project") {
-              vscode.commands.executeCommand("loghead.createProject");
-            }
-            return;
-          }
-
-          // ✅ Ask user to choose project
-          const projectPick = await vscode.window.showQuickPick(
-            projects.map((p: any) => ({
-              label: p.name,
-              description: p.id,
-            })),
-            { placeHolder: "Select a project" }
-          );
-
-          if (!projectPick) return;
-          projectId = projectPick.description;
+        let projects: any[] = [];
+        try {
+          projects = (await api.fetchProjects()) as any[];
+        } catch (e) {
+          vscode.window.showErrorMessage(String(e));
+          return;
         }
 
-        if (!projectId) return;
+        // 🚫 No projects exist
+        if (projects.length === 0) {
+          const create = await vscode.window.showWarningMessage(
+            "No projects found. Create a project first?",
+            "Create Project"
+          );
+
+          if (create === "Create Project") {
+            vscode.commands.executeCommand("loghead.createProject");
+          }
+          return;
+        }
+
+        // ✅ Ask user to choose project
+        const projectPick = await vscode.window.showQuickPick(
+          projects.map((p: any) => ({
+            label: p.name,
+            description: p.id,
+          })),
+          { placeHolder: "Select a project" }
+        );
+
+        if (!projectPick) return;
 
         const streamName = await vscode.window.showInputBox({
           prompt: "Stream name",
@@ -166,7 +161,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         try {
           await api.createStream(
-            projectId,
+            projectPick.description!,
             streamName,
             streamType
           );
@@ -275,32 +270,53 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }),
 
-      // >> Command to select logs stream
-      vscode.commands.registerCommand("loghead.selectLogsStream", async () => {
+      // >> Command to select logs project
+      vscode.commands.registerCommand("loghead.selectLogsProject", async () => {
         const projects = (await api.fetchProjects()) as any[];
-
-        const streams: (vscode.QuickPickItem & { streamId: string })[] = [];
-
-        for (const p of projects) {
-          if (p.streams && p.streams.length > 0) {
-            for (const s of p.streams) {
-              streams.push({
-                label: s.name,
-                description: `Project: ${p.name} (${s.type})`,
-                streamId: s.id
-              });
-            }
-          }
+        if (!projects.length) {
+          vscode.window.showInformationMessage("No projects found");
+          return;
         }
 
-        if (streams.length === 0) {
+        const pick = await vscode.window.showQuickPick(
+          projects.map((p: any) => ({
+            label: p.name,
+            description: p.id,
+          })),
+          { placeHolder: "Select a project" }
+        );
+
+        if (!pick) return;
+
+        logsView.setProject(pick.description!);
+        logsView.refresh();
+      }),
+
+      // >> Command to select logs stream
+      vscode.commands.registerCommand("loghead.selectLogsStream", async () => {
+        if (!logsView.hasProject()) {
+          vscode.window.showWarningMessage("Select a project first");
+          return;
+        }
+
+        const projects = (await api.fetchProjects()) as any[];
+        const project = projects.find((p: any) => p.id === logsView.projectId);
+
+        if (!project?.streams?.length) {
           vscode.window.showInformationMessage("No streams found");
           return;
         }
 
-        const pick = await vscode.window.showQuickPick(streams, {
-          placeHolder: "Select a stream to view logs",
-        });
+        const pick = await vscode.window.showQuickPick<
+          vscode.QuickPickItem & { streamId: string }
+        >(
+          project.streams.map((s: any) => ({
+            label: s.name,
+            description: s.type,
+            streamId: s.id,
+          })),
+          { placeHolder: "Select a stream" }
+        );
 
         if (!pick) return;
 

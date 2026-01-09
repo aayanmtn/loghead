@@ -7,6 +7,7 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private selectedStreamId: string | null = null;
+  public projectId: string | null = null;
   private logs: any[] = [];
 
   private infoItem(text: string) {
@@ -69,6 +70,17 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
   setStream(streamId: string) {
     this.selectedStreamId = streamId;
     this.loadLogs();
+  }
+
+  hasProject(): boolean {
+    return !!this.projectId;
+  }
+
+  setProject(projectId: string) {
+    this.projectId = projectId;
+    this.selectedStreamId = null;
+    this.logs = [];
+    this.refresh();
   }
 
   async loadLogs() {
