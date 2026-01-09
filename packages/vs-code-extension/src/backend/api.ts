@@ -1,6 +1,6 @@
 import { serverState } from "../state/serverState";
 
-const baseUrl = () => `http://localhost:${serverState.port ?? 4567}`;
+const baseUrl = () => `http://127.0.0.1:${serverState.port ?? 4567}`;
 
 function headers() {
   const h: Record<string, string> = {

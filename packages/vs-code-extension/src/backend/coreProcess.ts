@@ -8,12 +8,24 @@ let coreProcess: ChildProcessWithoutNullStreams | null = null;
 
 export function startCore(
   context: vscode.ExtensionContext,
+  outputChannel: vscode.OutputChannel,
   onUpdate: () => void
 ) {
   if (coreProcess) {
     vscode.window.showWarningMessage("Loghead already running");
     return;
   }
+
+  outputChannel.appendLine("Starting Loghead Core...");
+
+  // Ensure global storage path exists
+  if (!fs.existsSync(context.globalStorageUri.fsPath)) {
+    fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
+  }
+
+  const dbPath = path.join(context.globalStorageUri.fsPath, "loghead.db");
+  outputChannel.appendLine(`Database path: ${dbPath}`);
+
   // coreProcess = spawn("node", [coreBin, "start"], {
   //   shell: false,
   //   env: {
@@ -26,20 +38,42 @@ export function startCore(
     env: {
       ...process.env,
       LOGHEAD_ENV: "vscode",
+      LOGHEAD_DB_PATH: dbPath,
     },
   });
+
+  coreProcess.stdout.on("data", (data) => {
+    outputChannel.append(`${data}`);
+  });
+
+  coreProcess.stderr.on("data", (data) => {
+    outputChannel.append(`${data}`);
+  });
+
+  coreProcess.on("error", (error) => {
+    outputChannel.appendLine(`Failed to start Loghead Core: ${error.message}`);
+    vscode.window.showErrorMessage(`Loghead Core failed to start: ${error.message}`);
+  });
+
   serverState.port = 4567;
 
-  waitForServer()
+  waitForServer(outputChannel)
     .then(fetchSystemToken)
     .then((token) => {
       serverState.mcpToken = token;
       serverState.running = true;
+      outputChannel.appendLine("Loghead Core started successfully.");
       onUpdate();
     })
-    .catch((e) => vscode.window.showErrorMessage(String(e)));
+    .catch((e) => {
+      outputChannel.appendLine(`Error initializing Loghead Core: ${e}`);
+      vscode.window.showErrorMessage(`Loghead Core initialization failed: ${e}. Check "Loghead Server" output for details.`);
+      // Ensure we clean up if initialization failed
+      stopCore(() => { });
+    });
 
-  coreProcess.on("exit", () => {
+  coreProcess.on("exit", (code) => {
+    outputChannel.appendLine(`Loghead Core exited with code ${code}`);
     serverState.running = false;
     serverState.port = undefined;
     serverState.mcpToken = undefined;
@@ -48,19 +82,23 @@ export function startCore(
   });
 }
 
-async function waitForServer() {
-  for (let i = 0; i < 10; i++) {
+async function waitForServer(outputChannel: vscode.OutputChannel) {
+  outputChannel.appendLine("Waiting for server to be ready...");
+  for (let i = 0; i < 20; i++) {
     try {
-      const res = await fetch("http://localhost:4567/api/projects");
+      const res = await fetch("http://127.0.0.1:4567/api/projects");
       if (res.ok) return;
-    } catch {}
-    await new Promise((r) => setTimeout(r, 500));
+      outputChannel.appendLine(`Attempt ${i + 1}: Server not ready yet (status ${res.status})`);
+    } catch (e) {
+      outputChannel.appendLine(`Attempt ${i + 1}: Connection failed (${e})`);
+    }
+    await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error("Loghead failed to start");
+  throw new Error("Loghead failed to start after multiple attempts");
 }
 
 async function fetchSystemToken(): Promise<string> {
-  const res = await fetch("http://localhost:4567/api/system/token");
+  const res = await fetch("http://127.0.0.1:4567/api/system/token");
   if (!res.ok) throw new Error("Failed to fetch MCP token");
   const data = (await res.json()) as { token: string };
   return data.token;
