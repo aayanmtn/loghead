@@ -24,7 +24,7 @@
   "scripts": {
     "start": "tsx src/cli_main.ts start",
     "ui": "tsx src/cli_main.ts ui",
-    "build:frontend": "cd frontend && npm install && npm run build",
+    "build:frontend": "cd frontend && yarn install && yarn build",
     "build": "npm run build:frontend && tsc",
     "dev": "tsx watch src/cli_main.ts",
     "deploy": "npm publish --access public"

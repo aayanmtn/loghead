@@ -613,19 +613,7 @@ function App() {
                         <div className="flex items-center justify-between border-b border-gray-800 pb-4">
                             <div>
                                 <h2 className="text-2xl font-bold text-white">{currentStream ? currentStream.name : 'Overview'}</h2>
-                                <p className="text-gray-500 mt-1">
-                                    {currentStream
-                                        ? `Viewing logs and metrics for ${currentStream.name}`
-                                        : `Select a stream to view details for ${currentProject?.name}`
-                                    }
-                                </p>
                             </div>
-                            {currentStream && (
-                                <div className="flex items-center gap-2 px-3 py-1 bg-gray-900 border border-gray-800 rounded-full text-xs font-mono text-gray-400">
-                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                    Live
-                                </div>
-                            )}
                         </div>
 
                         {currentStream ? (
