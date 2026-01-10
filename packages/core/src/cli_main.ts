@@ -7,14 +7,13 @@ import { migrate } from "./db/migrate";
 // import { ensureInfrastructure } from "./utils/startup"; // Might need adjustment
 import { AuthService } from "./services/auth";
 import chalk from "chalk";
-import open from "open";
 
 const db = new DbService();
 const auth = new AuthService();
 
 async function main() {
     const argv = await yargs(hideBin(process.argv))
-        .command(["start", "$0"], "Start API Server", {}, async () => {
+        .command(["start", "$0"], "Start API Server", {}, async (argv) => {
             // console.log("Ensuring database is initialized...");
             await migrate(false); // Run migrations silently
 
@@ -23,7 +22,7 @@ async function main() {
             // Start API Server (this sets up express listen)
             await startApiServer(db);
 
-            console.clear();
+            // console.clear();
             console.log(chalk.bold.green(`
 ▌        ▌          ▌
 ▌  ▞▀▖▞▀▌▛▀▖▞▀▖▝▀▖▞▀▌
@@ -53,8 +52,6 @@ async function main() {
                 chalk.gray("--------------------------------------------------")
             );
             console.log(chalk.gray(" Press Ctrl+C to stop"));
-
-            open("http://localhost:4567");
         })
         .command("projects <cmd> [name]", "Manage projects", (yargs) => {
             yargs

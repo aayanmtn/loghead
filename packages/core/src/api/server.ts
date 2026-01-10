@@ -23,6 +23,7 @@ export async function startApiServer(db: DbService) {
   }
 
   if (require("fs").existsSync(publicPath)) {
+    console.log(chalk.blue(`Serving frontend from: ${publicPath}`));
     app.use(express.static(publicPath));
   } else {
     console.warn(
@@ -61,28 +62,38 @@ export async function startApiServer(db: DbService) {
     return result;
   };
 
-  // OTLP Logs Ingestion Endpoint
   app.post("/v1/logs", async (req, res) => {
+    console.log(`[API] POST /v1/logs received`);
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        console.warn("[API] /v1/logs Unauthorized: Missing token");
         return res.status(401).json({ code: 16, message: "Unauthenticated" });
       }
       const token = authHeader.split(" ")[1];
       const payload = await auth.verifyToken(token);
       if (!payload || !payload.streamId) {
+        console.warn("[API] /v1/logs Unauthorized: Invalid token");
         return res.status(401).json({ code: 16, message: "Invalid token" });
       }
 
       const streamId = payload.streamId;
+      console.log(`[API] Ingesting OTLP logs for stream: ${streamId}`);
       const { resourceLogs } = req.body;
 
       if (!resourceLogs || !Array.isArray(resourceLogs)) {
+        console.warn("[API] /v1/logs Invalid payload");
         return res.status(400).json({ code: 3, message: "Invalid payload" });
       }
 
-      let count = 0;
+      // ... existing logic ...
 
+      let count = 0;
+      // ... loop ...
+
+      // (I will keep the existing loop logic but add a log at the end)
+
+      /* ... existing loop code ... */
       for (const resourceLog of resourceLogs) {
         const resourceAttrs = parseOtlpAttributes(
           resourceLog.resource?.attributes
@@ -121,6 +132,7 @@ export async function startApiServer(db: DbService) {
         }
       }
 
+      console.log(`[API] /v1/logs Ingested ${count} logs`);
       res.json({ partialSuccess: {}, logsIngested: count });
     } catch (e) {
       console.error("OTLP Ingest error:", e);
@@ -129,28 +141,35 @@ export async function startApiServer(db: DbService) {
   });
 
   app.post("/api/ingest", async (req, res) => {
+    console.log(`[API] POST /api/ingest received`);
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        console.warn("[API] /api/ingest Unauthorized: Missing token");
         return res.status(401).send("Unauthorized: Missing token");
       }
       const token = authHeader.split(" ")[1];
       const payload = await auth.verifyToken(token);
       if (!payload || !payload.streamId) {
+        console.warn("[API] /api/ingest Unauthorized: Invalid token");
         return res.status(401).send("Unauthorized: Invalid token");
       }
 
       const { streamId, logs } = req.body;
+      console.log(`[API] Ingesting logs for stream: ${streamId}`);
 
       if (streamId !== payload.streamId) {
+        console.warn(`[API] /api/ingest Forbidden: Token streamId ${payload.streamId} != body streamId ${streamId}`);
         return res.status(403).send("Forbidden: Token does not match streamId");
       }
 
       if (!logs) {
+        console.warn("[API] /api/ingest Missing logs");
         return res.status(400).send("Missing logs");
       }
 
       const logEntries = Array.isArray(logs) ? logs : [logs];
+      console.log(`[API] Processing ${logEntries.length} log entries`);
 
       for (const log of logEntries) {
         let content = "";
@@ -168,6 +187,7 @@ export async function startApiServer(db: DbService) {
         }
       }
 
+      console.log(`[API] /api/ingest Successfully added ${logEntries.length} logs`);
       res.json({ success: true, count: logEntries.length });
     } catch (e) {
       console.error("Ingest error:", e);
