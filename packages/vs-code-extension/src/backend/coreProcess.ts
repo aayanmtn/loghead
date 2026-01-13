@@ -6,7 +6,16 @@ import * as fs from "fs";
 
 let coreProcess: ChildProcessWithoutNullStreams | null = null;
 
-export function startCore(
+async function checkServerRunning() {
+  try {
+    const res = await fetch("http://127.0.0.1:4567/api/projects");
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function startCore(
   context: vscode.ExtensionContext,
   outputChannel: vscode.OutputChannel,
   onUpdate: () => void
@@ -14,6 +23,22 @@ export function startCore(
   if (coreProcess) {
     vscode.window.showWarningMessage("Loghead already running");
     return;
+  }
+
+  if (await checkServerRunning()) {
+    outputChannel.appendLine("Loghead is already running externally. Connecting...");
+    try {
+      const token = await fetchSystemToken();
+      serverState.mcpToken = token;
+      serverState.running = true;
+      serverState.managed = false;
+      serverState.port = 4567;
+      onUpdate();
+      return;
+    } catch (e) {
+      vscode.window.showErrorMessage(`Failed to connect to external Loghead: ${e}`);
+      return;
+    }
   }
 
   outputChannel.appendLine("Starting Loghead Core...");
@@ -41,6 +66,8 @@ export function startCore(
       LOGHEAD_DB_PATH: dbPath,
     },
   });
+
+  serverState.managed = true;
 
   coreProcess.stdout.on("data", (data) => {
     outputChannel.append(`${data}`);
@@ -105,6 +132,14 @@ async function fetchSystemToken(): Promise<string> {
 }
 
 export function stopCore(onUpdate: () => void) {
+  if (!serverState.managed) {
+    serverState.running = false;
+    serverState.port = undefined;
+    serverState.mcpToken = undefined;
+    onUpdate();
+    return;
+  }
+
   if (!coreProcess) {
     vscode.window.showWarningMessage("Loghead is not running");
     return;
