@@ -1,51 +1,55 @@
-# loghead README
+# Loghead VS Code Extension
 
-This is the README for your extension "loghead". After writing up a brief description, we recommend including the following sections.
+Collects browser console logs and sends them to Loghead.
+
+Loghead helps developers capture, organize, and send logs directly to their debugging tools and AI coding assistants while they work. Instead of jumping between terminals, cloud dashboards, and browser tabs, Loghead brings your logs into one simple flow so you can understand issues faster and fix them with less friction.
+
+## What is Loghead?
+
+With Loghead installed, you can collect logs from browser activity, local development, and connected environments, then forward them to tools like Cursor or other LLM based workflows. This makes debugging more practical because the context lives right where you are writing and fixing code.
+
+Loghead is built for modern developers who use vibe coding and AI assisted debugging. It removes the noise from scattered logs and turns raw output into something you can reason about immediately. As a result, you spend less time searching for errors and more time shipping working code.
+
+If you are tired of copy pasting logs, losing context, or switching tools just to understand what went wrong, Loghead gives you a faster and calmer debugging experience right inside your browser.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- **Server Management**: Connect to and manage Loghead servers
+- **Project Management**: Create, view, and delete projects with ease
+- **Stream Management**: Create streams, copy stream tokens, and manage stream ingestion
+- **Log Viewer**: Browse and view logs from your streams in real-time
+- **Actions Panel**: Quick access to common operations for faster workflows
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- VS Code 1.107.0 or higher
+- Node.js runtime for the extension to function
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+This extension integrates with your Loghead server through the following views:
 
-For example:
+- **Server View**: Manage server connections
+- **Projects View**: Browse and manage your projects and streams
+- **Actions View**: Quick access to create projects and streams
+- **Logs View**: View logs from your streams
 
-This extension contributes the following settings:
+## Commands
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- `Loghead: Open Dashboard` - Open the Loghead dashboard
+- `Create Project` - Create a new project
+- `Create Stream` - Create a new stream in a project
+- `Refresh` - Refresh the project view
+- `Delete Project` - Delete a project
+- `Copy Stream Token` - Copy the authentication token for a stream
+- `Copy Stream Ingest Command` - Copy the ingest command for a stream
+- `Delete Stream` - Delete a stream
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+Initial release of Loghead VS Code Extension with basic project and stream management capabilities.
 
 ---
 
