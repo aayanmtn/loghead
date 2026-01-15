@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { ServerView } from "./views/serverView";
 import { serverState } from "./state/serverState";
 import { ProjectsView } from "./views/projectsView";
-import { ActionsView } from "./views/actionsView";
 import { LogsView } from "./views/logView";
 import { startCore, stopCore } from "./backend/coreProcess";
 import * as api from "./backend/api";
@@ -16,7 +15,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     const serverView = new ServerView();
     const projectsView = new ProjectsView();
-    const actionsView = new ActionsView();
     const logsView = new LogsView();
 
     context.subscriptions.push(
@@ -26,9 +24,6 @@ export function activate(context: vscode.ExtensionContext) {
       }),
       vscode.window.createTreeView("loghead.projects", {
         treeDataProvider: projectsView,
-      }),
-      vscode.window.createTreeView("loghead.actions", {
-        treeDataProvider: actionsView,
       }),
       vscode.window.createTreeView("loghead.logs", {
         treeDataProvider: logsView,
@@ -41,7 +36,6 @@ export function activate(context: vscode.ExtensionContext) {
         startCore(context, outputChannel, () => {
           serverView.refresh();
           projectsView.refresh();
-          actionsView.refresh();
           logsView.refresh();
         });
       }),

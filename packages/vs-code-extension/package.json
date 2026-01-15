@@ -37,10 +37,6 @@
           "name": "Projects"
         },
         {
-          "id": "loghead.actions",
-          "name": "Actions"
-        },
-        {
           "id": "loghead.logs",
           "name": "Logs"
         }

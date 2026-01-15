@@ -38,13 +38,15 @@ export class ServerView implements vscode.TreeDataProvider<vscode.TreeItem> {
   }
 
   private runningView(): vscode.TreeItem[] {
-    const status = new vscode.TreeItem("Status: Running");
+    const statusLabel = serverState.managed ? "Status: Running" : "Status: Running (External)";
+    const status = new vscode.TreeItem(statusLabel);
     status.iconPath = new vscode.ThemeIcon(
       "circle-filled",
       new vscode.ThemeColor("charts.green")
     );
 
-    const stop = new vscode.TreeItem("Stop Loghead");
+    const stopLabel = serverState.managed ? "Stop Loghead" : "Disconnect Loghead";
+    const stop = new vscode.TreeItem(stopLabel);
     stop.iconPath = new vscode.ThemeIcon("stop");
     stop.command = {
       command: "loghead.stop",

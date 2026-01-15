@@ -385,3 +385,20 @@ The `@loghead/core` server exposes a REST API on port `4567` (by default).
   - `POST /v1/logs`
   - Headers: `Authorization: Bearer <STREAM_TOKEN>`
   - Body: Standard OTLP JSON payload.
+
+## Contributing
+
+We welcome contributions to Loghead! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
+
+For detailed contribution guidelines, please see [CONTRIBUTING.md](./CONTRIBUTING.md). This includes information on:
+- How to report bugs and suggest features
+- Setting up your development environment
+- Code style and commit message conventions
+- Testing and documentation expectations
+- Pull request process
+
+Thank you for helping make Loghead better!
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
