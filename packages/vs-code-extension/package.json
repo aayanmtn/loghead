@@ -63,6 +63,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "loghead.refreshLogs",
+        "title": "Refresh Logs",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "loghead.deleteProject",
         "title": "Delete Project"
       },
@@ -89,6 +94,11 @@
         {
           "command": "loghead.refresh",
           "when": "view == loghead.projects",
+          "group": "navigation"
+        },
+        {
+          "command": "loghead.refreshLogs",
+          "when": "view == loghead.logs",
           "group": "navigation"
         }
       ],
@@ -119,6 +129,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "build": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",

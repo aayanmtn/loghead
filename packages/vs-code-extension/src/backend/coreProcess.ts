@@ -58,27 +58,32 @@ export async function startCore(
   //     LOGHEAD_ENV: "vscode",
   //   },
   // });
-  coreProcess = spawn("npx", ["-y", "@loghead/core", "start"], {
+  const env = {
+    ...process.env,
+    LOGHEAD_ENV: "vscode",
+    LOGHEAD_DB_PATH: dbPath,
+  };
+
+  outputChannel.appendLine(`Spawning Loghead Core with npx...`);
+  outputChannel.appendLine(`ENV LOGHEAD_DB_PATH: ${dbPath}`);
+
+  coreProcess = spawn("npx", ["-y", "@loghead/core@latest", "start"], {
     shell: true,
-    env: {
-      ...process.env,
-      LOGHEAD_ENV: "vscode",
-      LOGHEAD_DB_PATH: dbPath,
-    },
+    env,
   });
 
   serverState.managed = true;
 
   coreProcess.stdout.on("data", (data) => {
-    outputChannel.append(`${data}`);
+    outputChannel.append(`[Core Info]: ${data}`);
   });
 
   coreProcess.stderr.on("data", (data) => {
-    outputChannel.append(`${data}`);
+    outputChannel.append(`[Core Error]: ${data}`);
   });
 
   coreProcess.on("error", (error) => {
-    outputChannel.appendLine(`Failed to start Loghead Core: ${error.message}`);
+    outputChannel.appendLine(`Failed to start Loghead Core process: ${error.message}`);
     vscode.window.showErrorMessage(`Loghead Core failed to start: ${error.message}`);
   });
 
@@ -110,8 +115,8 @@ export async function startCore(
 }
 
 async function waitForServer(outputChannel: vscode.OutputChannel) {
-  outputChannel.appendLine("Waiting for server to be ready...");
-  for (let i = 0; i < 20; i++) {
+  outputChannel.appendLine("Waiting for server to be ready... (This may take a few minutes if updates are installing)");
+  for (let i = 0; i < 120; i++) {
     try {
       const res = await fetch("http://127.0.0.1:4567/api/projects");
       if (res.ok) return;
