@@ -5,10 +5,10 @@
   "description": "Collects browser console logs and sends them to Loghead.",
 
   "icons": {
-    "16": "icon/logo.png",
-    "32": "icon/logo.png",
-    "48": "icon/logo.png",
-    "128": "icon/logo.png"
+    "16": "icon/logo16.png",
+    "32": "icon/logo32.png",
+    "48": "icon/logo48.png",
+    "128": "icon/logo128.png"
   },
 
   "permissions": ["storage", "scripting"],
@@ -17,9 +17,10 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icon/logo.png",
-      "32": "icon/logo.png",
-      "48": "icon/logo.png"
+      "16": "icon/logo16.png",
+      "32": "icon/logo32.png",
+      "48": "icon/logo48.png",
+      "128": "icon/logo128.png"
     }
   },
   "background": {
