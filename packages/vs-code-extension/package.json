@@ -1,7 +1,7 @@
 {
   "name": "loghead",
   "displayName": "Loghead",
-  "description": "GUI dashboard for Loghead",
+  "description": "Code editor extension for loghead",
   "version": "0.0.1",
   "publisher": "loghead",
   "engines": {
