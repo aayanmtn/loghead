@@ -288,38 +288,46 @@ export function activate(context: vscode.ExtensionContext) {
 
       // >> Command to select logs stream
       vscode.commands.registerCommand("loghead.selectLogsStream", async () => {
-        if (!logsView.hasProject()) {
-          vscode.window.showWarningMessage("Select a project first");
+        let projects: any[] = [];
+        try {
+          projects = (await api.fetchProjects()) as any[];
+        } catch (e) {
+          vscode.window.showErrorMessage(`Failed to fetch projects: ${e}`);
           return;
         }
 
-        const projects = (await api.fetchProjects()) as any[];
-        const project = projects.find((p: any) => p.id === logsView.projectId);
+        const allStreams = projects.flatMap((p: any) =>
+          (p.streams || []).map((s: any) => ({
+            label: s.name,
+            description: `${p.name} • ${s.type}`,
+            projectId: p.id,
+            streamId: s.id,
+          }))
+        );
 
-        if (!project?.streams?.length) {
+        if (!allStreams.length) {
           vscode.window.showInformationMessage("No streams found");
           return;
         }
 
-        const pick = await vscode.window.showQuickPick<
-          vscode.QuickPickItem & { streamId: string }
-        >(
-          project.streams.map((s: any) => ({
-            label: s.name,
-            description: s.type,
-            streamId: s.id,
-          })),
-          { placeHolder: "Select a stream" }
-        );
+        const pick = await vscode.window.showQuickPick(allStreams, {
+          placeHolder: "Select a stream",
+        });
 
         if (!pick) return;
 
+        logsView.projectId = pick.projectId;
         logsView.setStream(pick.streamId);
       }),
 
       // >> Command to refresh projects view
       vscode.commands.registerCommand("loghead.refresh", () => {
         projectsView.refresh();
+      }),
+
+      // >> Command to refresh logs view
+      vscode.commands.registerCommand("loghead.refreshLogs", () => {
+        logsView.loadLogs();
       })
     );
 
