@@ -1,6 +1,6 @@
 {
   "name": "@loghead/core",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "license": "MIT",
   "description": "Core API and Database for Loghead",
   "repository": {

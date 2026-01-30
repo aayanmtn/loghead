@@ -338,8 +338,10 @@ function App() {
           <div className="flex items-center gap-4 text-sm font-medium">
             {/* Logo */}
             <div className="flex items-center gap-2 mr-4">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-green-500 to-emerald-600 flex items-center justify-center">
-                <Terminal className="w-4 h-4 text-white" />
+              <div className="w-8 h-8  flex items-center justify-center">
+                {/* <Terminal className="w-4 h-4 text-white" /> */}
+
+                <img src="/logo.png" />
               </div>
               <span className="font-bold text-lg tracking-tight">Loghead</span>
             </div>
