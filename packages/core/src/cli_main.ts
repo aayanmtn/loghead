@@ -1,26 +1,21 @@
 #!/usr/bin/env node
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { DbService } from "./services/db";
-import { startApiServer } from "./api/server";
-import { migrate } from "./db/migrate";
-// import { ensureInfrastructure } from "./utils/startup"; // Might need adjustment
-import { AuthService } from "./services/auth";
+import { dbService, authService, dbAdapter } from "./db/client.js";
+import { startApiServer } from "./api/server.js";
+import { migrate } from "@loghead/db";
 import chalk from "chalk";
-
-const db = new DbService();
-const auth = new AuthService();
 
 async function main() {
     const argv = await yargs(hideBin(process.argv))
         .command(["start", "$0"], "Start API Server", {}, async (argv) => {
             // console.log("Ensuring database is initialized...");
-            await migrate(false); // Run migrations silently
+            await migrate(dbAdapter, false); // Run migrations silently
 
-            const token = await auth.getOrCreateMcpToken();
+            const token = await authService.getOrCreateMcpToken();
 
             // Start API Server (this sets up express listen)
-            await startApiServer(db);
+            await startApiServer(dbService, authService);
 
             // console.clear();
             console.log(chalk.bold.green(`
@@ -55,16 +50,16 @@ async function main() {
         })
         .command("projects <cmd> [name]", "Manage projects", (yargs) => {
             yargs
-                .command("list", "List projects", {}, () => {
-                    const projects = db.listProjects();
+                .command("list", "List projects", {}, async () => {
+                    const projects = await dbService.listProjects();
                     console.table(projects);
                 })
-                .command("add <name>", "Add project", {}, (argv) => {
-                    const p = db.createProject(argv.name as string);
+                .command("add <name>", "Add project", {}, async (argv) => {
+                    const p = await dbService.createProject(argv.name as string);
                     console.log(`Project created: ${p.id}`);
                 })
-                .command("delete <id>", "Delete project", {}, (argv) => {
-                    db.deleteProject(argv.id as string);
+                .command("delete <id>", "Delete project", {}, async (argv) => {
+                    await dbService.deleteProject(argv.id as string);
                     console.log(`Project deleted: ${argv.id}`);
                 });
         })
@@ -76,8 +71,8 @@ async function main() {
                     {
                         project: { type: "string", demandOption: true },
                     },
-                    (argv) => {
-                        const streams = db.listStreams(argv.project);
+                    async (argv) => {
+                        const streams = await dbService.listStreams(argv.project);
                         console.table(streams);
                     }
                 )
@@ -93,7 +88,7 @@ async function main() {
                         if (argv.type === "docker" && argv.container) {
                             config.container = argv.container;
                         }
-                        const s = await db.createStream(
+                        const s = await dbService.createStream(
                             argv.project,
                             argv.type as string,
                             argv.name as string,
@@ -108,12 +103,12 @@ async function main() {
                     "Get token for stream",
                     {},
                     async (argv) => {
-                        const token = await auth.createStreamToken(argv.streamId as string);
+                        const token = await authService.createStreamToken(argv.streamId as string);
                         console.log(`Token: ${token}`);
                     }
                 )
-                .command("delete <id>", "Delete stream", {}, (argv) => {
-                    db.deleteStream(argv.id as string);
+                .command("delete <id>", "Delete stream", {}, async (argv) => {
+                    await dbService.deleteStream(argv.id as string);
                     console.log(`Stream deleted: ${argv.id}`);
                 });
         })

@@ -1,26 +1,32 @@
 import jwt from "jsonwebtoken";
-import { db } from "../db/client";
+import { DatabaseAdapter } from "./adapter.js";
 import { randomBytes } from "crypto";
 
-// Helper type for DB access
-// deno-lint-ignore no-explicit-any
-type DbAny = any;
-
 export class AuthService {
+    private db: DatabaseAdapter;
     private secretKey: string | null = null;
+    private tenantId?: string;
+
+    constructor(db: DatabaseAdapter) {
+        this.db = db;
+    }
+
+    setTenantId(id: string) {
+        this.tenantId = id;
+    }
 
     async initialize() {
         if (this.secretKey) return;
 
         // Try to load secret from DB
-        const row = (db.prepare("SELECT value FROM system_config WHERE key = 'jwt_secret'") as unknown as DbAny).get();
+        const row = await this.db.get<{ value: string }>("SELECT value FROM system_config WHERE key = 'jwt_secret'");
 
         let rawSecret = row?.value;
 
         if (!rawSecret) {
             // Generate new secret
             rawSecret = randomBytes(64).toString('hex');
-            (db.prepare("INSERT INTO system_config (key, value) VALUES ('jwt_secret', ?)") as unknown as DbAny).run(rawSecret);
+            await this.db.run("INSERT INTO system_config (key, value) VALUES ('jwt_secret', ?)", [rawSecret]);
         }
 
         this.secretKey = rawSecret;
@@ -31,7 +37,7 @@ export class AuthService {
         if (!this.secretKey) throw new Error("Auth not initialized");
 
         // Check if token exists in DB
-        const row = (db.prepare("SELECT value FROM system_config WHERE key = 'mcp_token'") as unknown as DbAny).get();
+        const row = await this.db.get<{ value: string }>("SELECT value FROM system_config WHERE key = 'mcp_token'");
         if (row?.value) {
             return row.value;
         }
@@ -40,7 +46,7 @@ export class AuthService {
         // A system token that has access to everything (conceptually)
         const token = jwt.sign({ sub: "system:mcp", iss: "loghead", role: "admin" }, this.secretKey, { algorithm: "HS512" });
 
-        (db.prepare("INSERT INTO system_config (key, value) VALUES ('mcp_token', ?)") as unknown as DbAny).run(token);
+        await this.db.run("INSERT INTO system_config (key, value) VALUES ('mcp_token', ?)", [token]);
 
         return token;
     }
@@ -49,7 +55,12 @@ export class AuthService {
         await this.initialize();
         if (!this.secretKey) throw new Error("Auth not initialized");
 
-        const token = jwt.sign({ sub: streamId, iss: "loghead" }, this.secretKey, { algorithm: "HS512" });
+        const payload: any = { sub: streamId, iss: "loghead" };
+        if (this.tenantId) {
+            payload.tenantId = this.tenantId;
+        }
+
+        const token = jwt.sign(payload, this.secretKey, { algorithm: "HS512" });
         return token;
     }
 
@@ -58,17 +69,16 @@ export class AuthService {
         if (!this.secretKey) throw new Error("Auth not initialized");
 
         try {
-            // console.log(`[Auth] Verifying token with secret: ${this.secretKey.substring(0, 10)}...`);
             const payload = jwt.verify(token, this.secretKey, { issuer: "loghead", algorithms: ["HS512"] }) as jwt.JwtPayload;
             if (!payload.sub) return null;
             return { streamId: payload.sub };
         } catch (e) {
             console.error("Token verification failed:", e);
-            if (e instanceof Error && e.message === "invalid signature") {
-                console.error("[Auth] Secret key mismatch. Ensure the server is using the same database (and secret) as when the token was generated.");
-                console.error(`[Auth] Current secret starts with: ${this.secretKey?.substring(0, 8)}...`);
-            }
             return null;
         }
+    }
+
+    static decodeTokenUnsafe(token: string): any {
+        return jwt.decode(token);
     }
 }

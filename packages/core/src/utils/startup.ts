@@ -1,6 +1,6 @@
 import chalk from "chalk";
-import { OllamaService } from "../services/ollama";
-import { migrate } from "../db/migrate";
+import { OllamaService, migrate } from "@loghead/db";
+import { dbAdapter } from "../db/client.js";
 
 export async function ensureInfrastructure() {
     console.log(chalk.bold.blue("\n🚀Performing system preflight checks..."));
@@ -17,10 +17,10 @@ export async function ensureInfrastructure() {
         }
     });
 
-    // 2. Check Database & Migrations (SQLite)
+    // 2. Check Database & Migrations (LibSQL)
     await checkStep("Initializing database...", async () => {
         try {
-            migrate(false);
+            await migrate(dbAdapter, false);
         } catch (e) {
             console.log(chalk.yellow("\n   ➤ Migration failed..."));
             throw e;

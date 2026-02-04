@@ -1,33 +1,25 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.startApiServer = startApiServer;
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const path_1 = __importDefault(require("path"));
-const auth_1 = require("../services/auth");
-const chalk_1 = __importDefault(require("chalk"));
-const auth = new auth_1.AuthService();
-async function startApiServer(db) {
-    const app = (0, express_1.default)();
+import express from "express";
+import cors from "cors";
+import path from "path";
+import chalk from "chalk";
+export async function startApiServer(db, auth) {
+    const app = express();
     const port = process.env.PORT || 4567;
-    app.use((0, cors_1.default)());
-    app.use(express_1.default.json());
+    app.use(cors());
+    app.use(express.json());
     // Serve static frontend files
     // Determine path based on whether we are running in src (dev) or dist (prod)
-    let publicPath = path_1.default.join(__dirname, "../public");
+    let publicPath = path.join(__dirname, "../public");
     if (!require("fs").existsSync(publicPath)) {
         // Try looking in dist/public if we are in src
-        publicPath = path_1.default.join(__dirname, "../../dist/public");
+        publicPath = path.join(__dirname, "../../dist/public");
     }
     if (require("fs").existsSync(publicPath)) {
-        console.log(chalk_1.default.blue(`Serving frontend from: ${publicPath}`));
-        app.use(express_1.default.static(publicPath));
+        console.log(chalk.blue(`Serving frontend from: ${publicPath}`));
+        app.use(express.static(publicPath));
     }
     else {
-        console.warn(chalk_1.default.yellow("Frontend build not found. Run 'npm run build' in packages/core/frontend to build the UI."));
+        console.warn(chalk.yellow("Frontend build not found. Run 'npm run build' in packages/core/frontend to build the UI."));
     }
     await auth.initialize();
     // console.log(chalk.bold.green(`\n💻 API server running on:`));
@@ -287,8 +279,8 @@ async function startApiServer(db) {
         if (req.path.startsWith("/api")) {
             return res.status(404).json({ error: "Not Found" });
         }
-        if (require("fs").existsSync(path_1.default.join(publicPath, "index.html"))) {
-            res.sendFile(path_1.default.join(publicPath, "index.html"));
+        if (require("fs").existsSync(path.join(publicPath, "index.html"))) {
+            res.sendFile(path.join(publicPath, "index.html"));
         }
         else {
             res.status(404).send("Dashboard not found. Please build the frontend.");

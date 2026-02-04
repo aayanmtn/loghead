@@ -1,5 +1,5 @@
-import { DbService } from "../services/db";
-import { AuthService } from "../services/auth";
+import { DbService, AuthService } from "@loghead/db";
+import { dbService, authService } from "../db/client.js";
 import inquirer from "inquirer";
 import chalk from "chalk";
 
@@ -27,7 +27,7 @@ export async function startTui(db: DbService, token: string) {
 
     while (true) {
         showHeader();
-        const projects = db.listProjects();
+        const projects = await db.listProjects();
 
         const projectChoices: (inquirer.Separator | { name: string; value: string })[] = projects.map(p => ({ name: p.name, value: p.id }));
         projectChoices.push(new inquirer.Separator());
@@ -53,7 +53,7 @@ export async function startTui(db: DbService, token: string) {
                 prefix: "💡"
             }]);
             if (name) {
-                db.createProject(name);
+                await db.createProject(name);
             }
             continue;
         }
@@ -61,12 +61,12 @@ export async function startTui(db: DbService, token: string) {
         // List streams for project
         while (true) {
             showHeader();
-            const project = projects.find(p => p.id === projectId);
+            const project = projects.find((p) => p.id === projectId);
             console.log(chalk.bold.blue(`Project: ${project?.name}\n`));
 
-            const streams = db.listStreams(projectId);
+            const streams = await db.listStreams(projectId);
 
-            const streamChoices: (inquirer.Separator | { name: string; value: string })[] = streams.map(s => ({
+            const streamChoices: (inquirer.Separator | { name: string; value: string })[] = streams.map((s) => ({
                 name: `${s.name} (${s.type})`,
                 value: s.id
             }));
@@ -125,7 +125,7 @@ export async function startTui(db: DbService, token: string) {
             // Stream Actions
             while (true) {
                 showHeader();
-                const stream = streams.find(s => s.id === streamId);
+                const stream = streams.find((s: any) => s.id === streamId);
                 console.log(chalk.bold.blue(`Project: ${project?.name}`));
                 console.log(chalk.bold.blue(`  └─ Stream: ${stream?.name} (${stream?.type})\n`));
 
@@ -145,8 +145,7 @@ export async function startTui(db: DbService, token: string) {
                 if (action === "back") break;
 
                 if (action === "get_token") {
-                    const auth = new AuthService();
-                    const token = await auth.createStreamToken(streamId);
+                    const token = await authService.createStreamToken(streamId);
                     console.log(chalk.green(`\nToken for ${stream?.name}:`));
                     console.log(chalk.bold.yellow(`${token}\n`));
 
@@ -165,7 +164,7 @@ export async function startTui(db: DbService, token: string) {
                         message: `Are you sure you want to delete stream ${stream?.name}?`
                     }]);
                     if (confirm) {
-                        db.deleteStream(streamId);
+                        await db.deleteStream(streamId);
                         break; // Go back to stream list
                     }
                 }
@@ -174,7 +173,7 @@ export async function startTui(db: DbService, token: string) {
                     console.clear();
                     console.log(chalk.bold.green(`Logs for ${stream?.name}:\n`));
 
-                    const logs = db.getRecentLogs(streamId, 20);
+                    const logs = await db.getRecentLogs(streamId, 20);
                     if (logs.length === 0) {
                         console.log("No logs recorded yet.");
                     } else {
@@ -195,3 +194,4 @@ export async function startTui(db: DbService, token: string) {
         }
     }
 }
+

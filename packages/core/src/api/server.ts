@@ -1,13 +1,15 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
-import { DbService } from "../services/db";
-import { AuthService } from "../services/auth";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { DbService, AuthService } from "@loghead/db";
 import chalk from "chalk";
 
-const auth = new AuthService();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-export async function startApiServer(db: DbService) {
+export async function startApiServer(db: DbService, auth: AuthService) {
   const app = express();
   const port = process.env.PORT || 4567;
 
@@ -17,12 +19,12 @@ export async function startApiServer(db: DbService) {
   // Serve static frontend files
   // Determine path based on whether we are running in src (dev) or dist (prod)
   let publicPath = path.join(__dirname, "../public");
-  if (!require("fs").existsSync(publicPath)) {
+  if (!fs.existsSync(publicPath)) {
     // Try looking in dist/public if we are in src
     publicPath = path.join(__dirname, "../../dist/public");
   }
 
-  if (require("fs").existsSync(publicPath)) {
+  if (fs.existsSync(publicPath)) {
     console.log(chalk.blue(`Serving frontend from: ${publicPath}`));
     app.use(express.static(publicPath));
   } else {
@@ -217,36 +219,36 @@ export async function startApiServer(db: DbService) {
     }
   });
 
-  app.get("/api/projects", (req, res) => {
-    const projects = db.listProjects();
+  app.get("/api/projects", async (req, res) => {
+    const projects = await db.listProjects();
     res.json(projects);
   });
-  app.post("/api/projects", (req, res) => {
+  app.post("/api/projects", async (req, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: "Name required" });
-    const project = db.createProject(name);
+    const project = await db.createProject(name);
     res.json(project);
   });
 
-  app.delete("/api/projects/:id", (req, res) => {
+  app.delete("/api/projects/:id", async (req, res) => {
     const { id } = req.params;
-    db.deleteProject(id);
+    await db.deleteProject(id);
     res.json({ success: true });
   });
 
-  app.get("/api/streams", (req, res) => {
+  app.get("/api/streams", async (req, res) => {
     const projectId = req.query.projectId as string;
     if (projectId) {
-      const streams = db.listStreams(projectId);
+      const streams = await db.listStreams(projectId);
       res.json(streams);
     } else {
       res.status(400).send("Missing projectId");
     }
   });
 
-  app.delete("/api/streams/:id", (req, res) => {
+  app.delete("/api/streams/:id", async (req, res) => {
     const { id } = req.params;
-    db.deleteStream(id);
+    await db.deleteStream(id);
     res.json({ success: true });
   });
 
@@ -260,7 +262,7 @@ export async function startApiServer(db: DbService) {
     }
   });
 
-  app.post("/api/streams", (req, res) => {
+  app.post("/api/streams", async (req, res) => {
     // Deprecated or just listing? The previous code had this returning listStreams for POST?
     // I'll remove it or keep it if CLI uses it?
     // CLI uses db directly.
@@ -268,7 +270,7 @@ export async function startApiServer(db: DbService) {
     // I'll replace this with the actual CREATE logic to be RESTful, or keep /create
     const projectId = req.body.projectId;
     if (projectId) {
-      const streams = db.listStreams(projectId);
+      const streams = await db.listStreams(projectId);
       res.json(streams);
     } else {
       res.status(400).send("Missing projectId");
@@ -311,7 +313,7 @@ export async function startApiServer(db: DbService) {
     if (query) {
       logs = await db.searchLogs(streamId, query, limit);
     } else {
-      logs = db.getRecentLogs(streamId, limit, offset);
+      logs = await db.getRecentLogs(streamId, limit, offset);
     }
     res.json(logs);
   });
@@ -322,7 +324,7 @@ export async function startApiServer(db: DbService) {
       return res.status(404).json({ error: "Not Found" });
     }
 
-    if (require("fs").existsSync(path.join(publicPath, "index.html"))) {
+    if (fs.existsSync(path.join(publicPath, "index.html"))) {
       res.sendFile(path.join(publicPath, "index.html"));
     } else {
       res.status(404).send("Dashboard not found. Please build the frontend.");

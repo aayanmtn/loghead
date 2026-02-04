@@ -130,12 +130,18 @@ function App() {
     try {
       const res = await fetch("/api/projects");
       const data = await res.json();
-      setProjects(data);
-      if (data.length > 0 && !selectedProject) {
-        setSelectedProject(data[0].id);
+      if (Array.isArray(data)) {
+        setProjects(data);
+        if (data.length > 0 && !selectedProject) {
+          setSelectedProject(data[0].id);
+        }
+      } else {
+        console.error("Projects API returned non-array:", data);
+        setProjects([]);
       }
     } catch (err) {
       console.error("Failed to fetch projects", err);
+      setProjects([]);
     }
   };
 
@@ -143,14 +149,20 @@ function App() {
     try {
       const res = await fetch(`/api/streams?projectId=${projectId}`);
       const data = await res.json();
-      setStreams(data);
-      if (data.length > 0) {
-        setSelectedStream(data[0].id);
+      if (Array.isArray(data)) {
+        setStreams(data);
+        if (data.length > 0) {
+          setSelectedStream(data[0].id);
+        } else {
+          setSelectedStream(null);
+        }
       } else {
-        setSelectedStream(null);
+        console.error("Streams API returned non-array:", data);
+        setStreams([]);
       }
     } catch (err) {
       console.error("Failed to fetch streams", err);
+      setStreams([]);
     }
   };
 
