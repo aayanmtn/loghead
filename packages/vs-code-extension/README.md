@@ -8,6 +8,8 @@ Loghead helps developers capture, organize, and send logs directly to their debu
 
 With Loghead installed, you can collect logs from browser activity, local development, and connected environments, then forward them to tools like Cursor or other LLM based workflows. This makes debugging more practical because the context lives right where you are writing and fixing code.
 
+[![Loghead Demo Video](https://img.youtube.com/vi/RKmlgE1mx1E/maxresdefault.jpg)](https://youtu.be/RKmlgE1mx1E)
+
 Loghead is built for modern developers who use vibe coding and AI assisted debugging. It removes the noise from scattered logs and turns raw output into something you can reason about immediately. As a result, you spend less time searching for errors and more time shipping working code.
 
 If you are tired of copy pasting logs, losing context, or switching tools just to understand what went wrong, Loghead gives you a faster and calmer debugging experience right inside your browser.
@@ -57,19 +59,19 @@ Initial release of Loghead VS Code Extension with basic project and stream manag
 
 Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
 
 ## Working with Markdown
 
 You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+- Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
+- Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
+- Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
 
 ## For more information
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
+- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
 
 **Enjoy!**
