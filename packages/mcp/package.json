@@ -1,6 +1,6 @@
 {
   "name": "@loghead/mcp",
-  "version": "0.1.10",
+  "version": "0.1.14",
   "description": "Standalone MCP Server for Loghead",
   "repository": {
     "type": "git",
@@ -11,7 +11,7 @@
     "url": "https://github.com/onvo-ai/loghead/issues"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org"
   },
   "main": "dist/main.js",
   "bin": {
