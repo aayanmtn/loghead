@@ -9,19 +9,63 @@ const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const zod_1 = require("zod");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-let baseUrl = process.env.LOGHEAD_API_URL || "http://localhost:4567";
-if (baseUrl.endsWith("/"))
-    baseUrl = baseUrl.slice(0, -1);
-if (baseUrl.endsWith("/api"))
-    baseUrl = baseUrl.slice(0, -4);
-const API_URL = `${baseUrl}/api`;
-async function fetchApi(path, options = {}) {
-    const url = `${API_URL}${path}`;
-    const res = await fetch(url, options);
-    if (!res.ok) {
-        throw new Error(`API Error ${res.status}: ${res.statusText}`);
+const LOGHEAD_TOKEN = process.env.LOGHEAD_TOKEN;
+function normalizeBaseUrl(url) {
+    let normalized = url.trim();
+    if (normalized.endsWith("/"))
+        normalized = normalized.slice(0, -1);
+    // Support users passing API/SSE endpoints instead of the host root.
+    if (normalized.endsWith("/api"))
+        normalized = normalized.slice(0, -4);
+    if (normalized.endsWith("/sse"))
+        normalized = normalized.slice(0, -4);
+    return normalized;
+}
+const baseUrl = normalizeBaseUrl(process.env.LOGHEAD_API_URL || "http://localhost:4567");
+const API_BASE_CANDIDATES = [`${baseUrl}/api`, baseUrl];
+class ApiError extends Error {
+    status;
+    statusText;
+    url;
+    constructor(status, statusText, url, bodyText) {
+        super(`API Error ${status}: ${statusText} (${url})${bodyText ? ` - ${bodyText}` : ""}`);
+        this.status = status;
+        this.statusText = statusText;
+        this.url = url;
     }
-    return await res.json();
+}
+async function fetchApi(path, options = {}) {
+    const headers = new Headers(options.headers || {});
+    if (LOGHEAD_TOKEN && !headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${LOGHEAD_TOKEN}`);
+    }
+    let lastError = null;
+    for (const apiBase of API_BASE_CANDIDATES) {
+        const url = `${apiBase}${path}`;
+        const res = await fetch(url, { ...options, headers });
+        if (res.ok) {
+            const contentType = res.headers.get("content-type") || "";
+            if (contentType.includes("application/json")) {
+                return await res.json();
+            }
+            const text = await res.text();
+            if (!text)
+                return {};
+            try {
+                return JSON.parse(text);
+            }
+            catch {
+                return text;
+            }
+        }
+        const bodyText = await res.text();
+        lastError = new ApiError(res.status, res.statusText, url, bodyText);
+        // Try the next candidate base URL only for not found routes.
+        if (res.status !== 404) {
+            throw lastError;
+        }
+    }
+    throw (lastError || new Error("Unknown API request error"));
 }
 async function main() {
     const server = new mcp_js_1.McpServer({
@@ -118,10 +162,25 @@ async function main() {
         config: zod_1.z.any().optional().describe("Optional configuration object specific to the stream type")
     }, async ({ projectId, type, name, config }) => {
         try {
-            const stream = await fetchApi("/streams/create", {
+            const payload = { projectId, type, name, config };
+            try {
+                const stream = await fetchApi("/streams/create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                return { content: [{ type: "text", text: `Stream created: ${stream.id}\nToken: ${stream.token}` }] };
+            }
+            catch (error) {
+                // Cloud uses POST /api/streams while Core uses POST /api/streams/create.
+                if (!(error instanceof ApiError) || error.status !== 404) {
+                    throw error;
+                }
+            }
+            const stream = await fetchApi("/streams", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ projectId, type, name, config })
+                body: JSON.stringify(payload)
             });
             return { content: [{ type: "text", text: `Stream created: ${stream.id}\nToken: ${stream.token}` }] };
         }
