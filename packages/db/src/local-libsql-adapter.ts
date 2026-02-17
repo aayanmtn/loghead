@@ -1,4 +1,3 @@
-import Database from "libsql";
 import { DatabaseAdapter } from "./adapter.js";
 
 export class LocalLibSqlAdapter implements DatabaseAdapter {

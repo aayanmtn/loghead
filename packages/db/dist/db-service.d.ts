@@ -17,10 +17,11 @@ export declare class DbService {
     getStream(id: string): Promise<Stream | undefined>;
     deleteStream(id: string): Promise<boolean>;
     listStreams(projectId: string): Promise<Stream[]>;
+    cleanupOldLogs(days?: number): Promise<void>;
     addLog(streamId: string, content: string, metadata?: Record<string, unknown>): Promise<{
         id: string;
     }>;
-    searchLogs(streamId: string, query: string, limit?: number): Promise<SearchResult[]>;
+    searchLogs(query: string, streamId?: string, limit?: number): Promise<SearchResult[]>;
     getRecentLogs(streamId: string, limit?: number, offset?: number): Promise<Log[]>;
     close(): Promise<void>;
 }

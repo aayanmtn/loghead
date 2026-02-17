@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@loghead/ui": "^0.1.7",
     "lucide-react": "^0.344.0",
     "open": "^8.4.2",
     "react": "^18.2.0",

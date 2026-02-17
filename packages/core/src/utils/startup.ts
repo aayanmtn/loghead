@@ -2,6 +2,11 @@ import chalk from "chalk";
 import { OllamaService, migrate } from "@loghead/db";
 import { dbAdapter } from "../db/client.js";
 
+function isUnsupportedVectorIndexError(error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return msg.includes("invalid expression in CREATE INDEX") && msg.includes("libsql_vector_idx");
+}
+
 export async function ensureInfrastructure() {
     console.log(chalk.bold.blue("\n🚀Performing system preflight checks..."));
 
@@ -22,6 +27,14 @@ export async function ensureInfrastructure() {
         try {
             await migrate(dbAdapter, false);
         } catch (e) {
+            if (isUnsupportedVectorIndexError(e)) {
+                console.log(
+                    chalk.yellow(
+                        "\n   ➤ Embedded DB does not support vector index expressions yet; continuing without vec_logs_idx.",
+                    ),
+                );
+                return;
+            }
             console.log(chalk.yellow("\n   ➤ Migration failed..."));
             throw e;
         }

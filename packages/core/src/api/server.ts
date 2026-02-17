@@ -263,17 +263,24 @@ export async function startApiServer(db: DbService, auth: AuthService) {
   });
 
   app.post("/api/streams", async (req, res) => {
-    // Deprecated or just listing? The previous code had this returning listStreams for POST?
-    // I'll remove it or keep it if CLI uses it?
-    // CLI uses db directly.
-    // MCP uses GET /api/streams
-    // I'll replace this with the actual CREATE logic to be RESTful, or keep /create
-    const projectId = req.body.projectId;
-    if (projectId) {
-      const streams = await db.listStreams(projectId);
-      res.json(streams);
-    } else {
-      res.status(400).send("Missing projectId");
+    try {
+      const { projectId, name, type, config } = req.body || {};
+
+      if (!projectId) {
+        return res.status(400).send("Missing projectId");
+      }
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return res.status(400).send("Missing name");
+      }
+      if (!type || typeof type !== "string") {
+        return res.status(400).send("Missing type");
+      }
+
+      const stream = await db.createStream(projectId, type, name.trim(), config || {});
+      res.json(stream);
+    } catch (e) {
+      console.error("Create stream error:", e);
+      res.status(500).json({ error: String(e) });
     }
   });
 
@@ -286,6 +293,25 @@ export async function startApiServer(db: DbService, auth: AuthService) {
       body.config || {}
     );
     res.json(stream);
+  });
+
+  app.get("/api/search", async (req, res) => {
+    const query = (req.query.query as string) || (req.query.q as string);
+    const streamId = req.query.streamId as string | undefined;
+    const limitStr = req.query.limit as string | undefined;
+    const limit = limitStr ? parseInt(limitStr) : 50;
+
+    if (!query) {
+      return res.json([]);
+    }
+
+    try {
+      const results = await db.searchLogs(query, streamId, limit);
+      res.json(results);
+    } catch (e) {
+      console.error("Error searching logs:", e);
+      res.status(500).send(String(e));
+    }
   });
 
   app.get("/api/logs", async (req, res) => {
@@ -311,7 +337,7 @@ export async function startApiServer(db: DbService, auth: AuthService) {
 
     let logs;
     if (query) {
-      logs = await db.searchLogs(streamId, query, limit);
+      logs = await db.searchLogs(query, streamId, limit);
     } else {
       logs = await db.getRecentLogs(streamId, limit, offset);
     }

@@ -1,7 +1,11 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import chalk from "chalk";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 export async function startApiServer(db, auth) {
     const app = express();
     const port = process.env.PORT || 4567;
@@ -10,11 +14,11 @@ export async function startApiServer(db, auth) {
     // Serve static frontend files
     // Determine path based on whether we are running in src (dev) or dist (prod)
     let publicPath = path.join(__dirname, "../public");
-    if (!require("fs").existsSync(publicPath)) {
+    if (!fs.existsSync(publicPath)) {
         // Try looking in dist/public if we are in src
         publicPath = path.join(__dirname, "../../dist/public");
     }
-    if (require("fs").existsSync(publicPath)) {
+    if (fs.existsSync(publicPath)) {
         console.log(chalk.blue(`Serving frontend from: ${publicPath}`));
         app.use(express.static(publicPath));
     }
@@ -187,35 +191,35 @@ export async function startApiServer(db, auth) {
             res.status(500).json({ error: String(e) });
         }
     });
-    app.get("/api/projects", (req, res) => {
-        const projects = db.listProjects();
+    app.get("/api/projects", async (req, res) => {
+        const projects = await db.listProjects();
         res.json(projects);
     });
-    app.post("/api/projects", (req, res) => {
+    app.post("/api/projects", async (req, res) => {
         const { name } = req.body;
         if (!name)
             return res.status(400).json({ error: "Name required" });
-        const project = db.createProject(name);
+        const project = await db.createProject(name);
         res.json(project);
     });
-    app.delete("/api/projects/:id", (req, res) => {
+    app.delete("/api/projects/:id", async (req, res) => {
         const { id } = req.params;
-        db.deleteProject(id);
+        await db.deleteProject(id);
         res.json({ success: true });
     });
-    app.get("/api/streams", (req, res) => {
+    app.get("/api/streams", async (req, res) => {
         const projectId = req.query.projectId;
         if (projectId) {
-            const streams = db.listStreams(projectId);
+            const streams = await db.listStreams(projectId);
             res.json(streams);
         }
         else {
             res.status(400).send("Missing projectId");
         }
     });
-    app.delete("/api/streams/:id", (req, res) => {
+    app.delete("/api/streams/:id", async (req, res) => {
         const { id } = req.params;
-        db.deleteStream(id);
+        await db.deleteStream(id);
         res.json({ success: true });
     });
     app.get("/api/streams/:id/token", async (req, res) => {
@@ -228,7 +232,7 @@ export async function startApiServer(db, auth) {
             res.status(500).json({ error: String(e) });
         }
     });
-    app.post("/api/streams", (req, res) => {
+    app.post("/api/streams", async (req, res) => {
         // Deprecated or just listing? The previous code had this returning listStreams for POST?
         // I'll remove it or keep it if CLI uses it?
         // CLI uses db directly.
@@ -236,7 +240,7 @@ export async function startApiServer(db, auth) {
         // I'll replace this with the actual CREATE logic to be RESTful, or keep /create
         const projectId = req.body.projectId;
         if (projectId) {
-            const streams = db.listStreams(projectId);
+            const streams = await db.listStreams(projectId);
             res.json(streams);
         }
         else {
@@ -247,6 +251,23 @@ export async function startApiServer(db, auth) {
         const body = req.body;
         const stream = await db.createStream(body.projectId, body.type, body.name, body.config || {});
         res.json(stream);
+    });
+    app.get("/api/search", async (req, res) => {
+        const query = req.query.query || req.query.q;
+        const streamId = req.query.streamId;
+        const limitStr = req.query.limit;
+        const limit = limitStr ? parseInt(limitStr) : 50;
+        if (!query) {
+            return res.json([]);
+        }
+        try {
+            const results = await db.searchLogs(query, streamId, limit);
+            res.json(results);
+        }
+        catch (e) {
+            console.error("Error searching logs:", e);
+            res.status(500).send(String(e));
+        }
     });
     app.get("/api/logs", async (req, res) => {
         const streamId = req.query.streamId;
@@ -267,10 +288,10 @@ export async function startApiServer(db, auth) {
         const query = req.query.q;
         let logs;
         if (query) {
-            logs = await db.searchLogs(streamId, query, limit);
+            logs = await db.searchLogs(query, streamId, limit);
         }
         else {
-            logs = db.getRecentLogs(streamId, limit, offset);
+            logs = await db.getRecentLogs(streamId, limit, offset);
         }
         res.json(logs);
     });
@@ -279,7 +300,7 @@ export async function startApiServer(db, auth) {
         if (req.path.startsWith("/api")) {
             return res.status(404).json({ error: "Not Found" });
         }
-        if (require("fs").existsSync(path.join(publicPath, "index.html"))) {
+        if (fs.existsSync(path.join(publicPath, "index.html"))) {
             res.sendFile(path.join(publicPath, "index.html"));
         }
         else {

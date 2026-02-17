@@ -74,6 +74,33 @@ export class DbService {
             return s;
         });
     }
+    async cleanupOldLogs(days = 3) {
+        await this.db.transaction(async () => {
+            try {
+                await this.db.exec("SAVEPOINT cleanup_vec");
+                await this.db.run(`
+        DELETE FROM vec_logs
+        WHERE rowid IN (
+          SELECT rowid FROM logs
+          WHERE datetime(timestamp) < datetime('now', ?)
+        )
+      `, [`-${days} days`]);
+                await this.db.exec("RELEASE SAVEPOINT cleanup_vec");
+            }
+            catch {
+                try {
+                    await this.db.exec("ROLLBACK TO SAVEPOINT cleanup_vec");
+                }
+                catch {
+                    // ignore rollback failures
+                }
+            }
+            await this.db.run(`
+      DELETE FROM logs
+      WHERE datetime(timestamp) < datetime('now', ?)
+    `, [`-${days} days`]);
+        });
+    }
     async addLog(streamId, content, metadata = {}) {
         // Generate embedding
         let embedding = null;
@@ -105,42 +132,83 @@ export class DbService {
                 const vecRowId = BigInt(rowid);
                 const vectorJson = JSON.stringify(embedding);
                 try {
-                    await this.db.run("INSERT INTO vec_logs(rowid, embedding) VALUES (?, ?)", [vecRowId, vectorJson]);
+                    await this.db.exec("SAVEPOINT add_vec");
+                    await this.db.run("INSERT OR REPLACE INTO vec_logs(rowid, embedding) VALUES (?, vector(?))", [vecRowId, vectorJson]);
+                    await this.db.exec("RELEASE SAVEPOINT add_vec");
                 }
-                catch (vecError) {
-                    console.error("Failed to insert into vec_logs:", vecError);
+                catch (_vecError) {
+                    try {
+                        await this.db.exec("ROLLBACK TO SAVEPOINT add_vec");
+                    }
+                    catch {
+                        // ignore rollback failures
+                    }
                     // Don't fail the whole transaction if vector insert fails
                 }
             }
         });
         return { id };
     }
-    async searchLogs(streamId, query, limit = 10) {
+    async searchLogs(query, streamId, limit = 10) {
         const embedding = await this.ollama.generateEmbedding(query);
         if (!embedding)
             return [];
         const vectorJson = JSON.stringify(embedding);
-        // KNN Search
-        const rows = await this.db.query(`
-      SELECT l.content, l.timestamp, l.metadata, v.distance
-      FROM vec_logs v
-      JOIN logs l ON l.rowid = v.rowid
-      WHERE v.embedding MATCH ? AND k = ? AND l.stream_id = ?
-      ORDER BY v.distance
-    `, [vectorJson, limit, streamId]);
-        return rows.map((row) => {
-            let meta;
-            try {
-                meta = JSON.parse(row.metadata);
+        try {
+            let sql = `
+      SELECT l.content, l.timestamp, l.metadata, k.distance
+      FROM vector_top_k('vec_logs_idx', vector(?), ?) AS k
+      JOIN logs l ON l.rowid = k.id
+    `;
+            const params = [vectorJson, limit];
+            if (streamId) {
+                sql += " WHERE l.stream_id = ?";
+                params.push(streamId);
             }
-            catch { /* ignore */ }
-            return {
-                content: row.content,
-                timestamp: row.timestamp,
-                similarity: 1 - row.distance, // Rough approx
-                metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined
-            };
-        });
+            sql += " ORDER BY k.distance";
+            const rows = await this.db.query(sql, params);
+            return rows.map((row) => {
+                let meta;
+                try {
+                    meta = JSON.parse(row.metadata);
+                }
+                catch { /* ignore */ }
+                return {
+                    content: row.content,
+                    timestamp: row.timestamp,
+                    similarity: 1 - row.distance,
+                    metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined
+                };
+            });
+        }
+        catch (_e) {
+            let fallbackSql = `
+        SELECT content, timestamp, metadata
+        FROM logs
+        WHERE content LIKE ?
+      `;
+            const fallbackParams = [`%${query}%`];
+            if (streamId) {
+                fallbackSql += " AND stream_id = ?";
+                fallbackParams.push(streamId);
+            }
+            fallbackSql += " ORDER BY timestamp DESC LIMIT ?";
+            fallbackParams.push(limit);
+            const rows = await this.db.query(fallbackSql, fallbackParams);
+            return rows.map((row) => {
+                let meta;
+                try {
+                    meta = JSON.parse(row.metadata);
+                }
+                catch { /* ignore */ }
+                return {
+                    content: row.content,
+                    timestamp: row.timestamp,
+                    similarity: 0.5,
+                    metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined
+                };
+            });
+        }
     }
     async getRecentLogs(streamId, limit = 50, offset = 0) {
         const rows = await this.db.query(`

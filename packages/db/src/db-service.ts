@@ -83,6 +83,39 @@ export class DbService {
         });
     }
 
+    async cleanupOldLogs(days = 3): Promise<void> {
+        await this.db.transaction(async () => {
+            try {
+                await this.db.exec("SAVEPOINT cleanup_vec");
+                await this.db.run(
+                    `
+        DELETE FROM vec_logs
+        WHERE rowid IN (
+          SELECT rowid FROM logs
+          WHERE datetime(timestamp) < datetime('now', ?)
+        )
+      `,
+                    [`-${days} days`],
+                );
+                await this.db.exec("RELEASE SAVEPOINT cleanup_vec");
+            } catch {
+                try {
+                    await this.db.exec("ROLLBACK TO SAVEPOINT cleanup_vec");
+                } catch {
+                    // ignore rollback failures
+                }
+            }
+
+            await this.db.run(
+                `
+      DELETE FROM logs
+      WHERE datetime(timestamp) < datetime('now', ?)
+    `,
+                [`-${days} days`],
+            );
+        });
+    }
+
     async addLog(streamId: string, content: string, metadata: Record<string, unknown> = {}): Promise<{ id: string }> {
         // Generate embedding
         let embedding: number[] | null = null;
@@ -120,9 +153,15 @@ export class DbService {
 
                 const vectorJson = JSON.stringify(embedding);
                 try {
-                    await this.db.run("INSERT INTO vec_logs(rowid, embedding) VALUES (?, ?)", [vecRowId, vectorJson]);
-                } catch (vecError) {
-                    console.error("Failed to insert into vec_logs:", vecError);
+                    await this.db.exec("SAVEPOINT add_vec");
+                    await this.db.run("INSERT OR REPLACE INTO vec_logs(rowid, embedding) VALUES (?, vector(?))", [vecRowId, vectorJson]);
+                    await this.db.exec("RELEASE SAVEPOINT add_vec");
+                } catch (_vecError) {
+                    try {
+                        await this.db.exec("ROLLBACK TO SAVEPOINT add_vec");
+                    } catch {
+                        // ignore rollback failures
+                    }
                     // Don't fail the whole transaction if vector insert fails
                 }
             }
@@ -131,31 +170,74 @@ export class DbService {
         return { id };
     }
 
-    async searchLogs(streamId: string, query: string, limit = 10): Promise<SearchResult[]> {
+    async searchLogs(query: string, streamId?: string, limit = 10): Promise<SearchResult[]> {
         const embedding = await this.ollama.generateEmbedding(query);
         if (!embedding) return [];
 
         const vectorJson = JSON.stringify(embedding);
 
-        // KNN Search
-        const rows = await this.db.query<{ content: string; timestamp: string; metadata: string; distance: number }>(`
-      SELECT l.content, l.timestamp, l.metadata, v.distance
-      FROM vec_logs v
-      JOIN logs l ON l.rowid = v.rowid
-      WHERE v.embedding MATCH ? AND k = ? AND l.stream_id = ?
-      ORDER BY v.distance
-    `, [vectorJson, limit, streamId]);
+        try {
+            let sql = `
+      SELECT l.content, l.timestamp, l.metadata, k.distance
+      FROM vector_top_k('vec_logs_idx', vector(?), ?) AS k
+      JOIN logs l ON l.rowid = k.id
+    `;
+            const params: any[] = [vectorJson, limit];
 
-        return rows.map((row) => {
-            let meta: Record<string, unknown> | undefined;
-            try { meta = JSON.parse(row.metadata); } catch { /* ignore */ }
-            return {
-                content: row.content,
-                timestamp: row.timestamp,
-                similarity: 1 - row.distance, // Rough approx
-                metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined
-            };
-        });
+            if (streamId) {
+                sql += " WHERE l.stream_id = ?";
+                params.push(streamId);
+            }
+
+            sql += " ORDER BY k.distance";
+
+            const rows = await this.db.query<{ content: string; timestamp: string; metadata: string; distance: number }>(
+                sql,
+                params,
+            );
+
+            return rows.map((row) => {
+                let meta: Record<string, unknown> | undefined;
+                try { meta = JSON.parse(row.metadata); } catch { /* ignore */ }
+                return {
+                    content: row.content,
+                    timestamp: row.timestamp,
+                    similarity: 1 - row.distance,
+                    metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined
+                };
+            });
+        } catch (_e) {
+            let fallbackSql = `
+        SELECT content, timestamp, metadata
+        FROM logs
+        WHERE content LIKE ?
+      `;
+            const fallbackParams: any[] = [`%${query}%`];
+
+            if (streamId) {
+                fallbackSql += " AND stream_id = ?";
+                fallbackParams.push(streamId);
+            }
+
+            fallbackSql += " ORDER BY timestamp DESC LIMIT ?";
+            fallbackParams.push(limit);
+
+            const rows = await this.db.query<{ content: string; timestamp: string; metadata: string }>(
+                fallbackSql,
+                fallbackParams,
+            );
+
+            return rows.map((row) => {
+                let meta: Record<string, unknown> | undefined;
+                try { meta = JSON.parse(row.metadata); } catch { /* ignore */ }
+                return {
+                    content: row.content,
+                    timestamp: row.timestamp,
+                    similarity: 0.5,
+                    metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined
+                };
+            });
+        }
     }
 
     async getRecentLogs(streamId: string, limit = 50, offset = 0): Promise<Log[]> {
