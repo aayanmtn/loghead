@@ -5,11 +5,25 @@ import { dbService, authService, dbAdapter } from "./db/client.js";
 import { startApiServer } from "./api/server.js";
 import { migrate } from "@loghead/db";
 import chalk from "chalk";
+function isUnsupportedVectorIndexError(error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return msg.includes("invalid expression in CREATE INDEX") && msg.includes("libsql_vector_idx");
+}
 async function main() {
     const argv = await yargs(hideBin(process.argv))
         .command(["start", "$0"], "Start API Server", {}, async (argv) => {
         // console.log("Ensuring database is initialized...");
-        await migrate(dbAdapter, false); // Run migrations silently
+        try {
+            await migrate(dbAdapter, false); // Run migrations silently
+        }
+        catch (e) {
+            if (isUnsupportedVectorIndexError(e)) {
+                console.warn("[Vector] Embedded DB does not support vector index expressions yet; continuing without vec_logs_idx.");
+            }
+            else {
+                throw e;
+            }
+        }
         const token = await authService.getOrCreateMcpToken();
         // Start API Server (this sets up express listen)
         await startApiServer(dbService, authService);

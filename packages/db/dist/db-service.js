@@ -3,6 +3,7 @@ export class DbService {
     db;
     auth;
     ollama;
+    warnedLastInsertRowidFallback = false;
     constructor(db, auth, ollama) {
         this.db = db;
         this.auth = auth;
@@ -77,7 +78,6 @@ export class DbService {
     async cleanupOldLogs(days = 3) {
         await this.db.transaction(async () => {
             try {
-                await this.db.exec("SAVEPOINT cleanup_vec");
                 await this.db.run(`
         DELETE FROM vec_logs
         WHERE rowid IN (
@@ -85,15 +85,9 @@ export class DbService {
           WHERE datetime(timestamp) < datetime('now', ?)
         )
       `, [`-${days} days`]);
-                await this.db.exec("RELEASE SAVEPOINT cleanup_vec");
             }
-            catch {
-                try {
-                    await this.db.exec("ROLLBACK TO SAVEPOINT cleanup_vec");
-                }
-                catch {
-                    // ignore rollback failures
-                }
+            catch (vecCleanupError) {
+                console.warn("[Core][DB][cleanupOldLogs] Vector cleanup step failed; continuing with log cleanup:", vecCleanupError);
             }
             await this.db.run(`
       DELETE FROM logs
@@ -117,9 +111,17 @@ export class DbService {
             const result = await this.db.run("INSERT INTO logs (id, stream_id, content, metadata) VALUES (?, ?, ?, ?)", [
                 id, streamId, content, metadataStr
             ]);
-            const rowid = result.lastInsertRowid;
+            let rowid = result.lastInsertRowid;
             if (rowid === undefined) {
-                console.error("Failed to get lastInsertRowid for log insertion");
+                const inserted = await this.db.get("SELECT rowid FROM logs WHERE id = ?", [id]);
+                rowid = inserted?.rowid;
+                if (rowid !== undefined && !this.warnedLastInsertRowidFallback) {
+                    this.warnedLastInsertRowidFallback = true;
+                    console.warn(`[Core][DB][addLog] lastInsertRowid missing; recovered via SELECT rowid for log inserts`);
+                }
+            }
+            if (rowid === undefined) {
+                console.error(`[Core][DB][addLog] Failed to resolve rowid for log insertion; vector index insert skipped for logId=${id}`);
                 return;
             }
             // 3. Insert into vec_logs if embedding exists
@@ -132,17 +134,10 @@ export class DbService {
                 const vecRowId = BigInt(rowid);
                 const vectorJson = JSON.stringify(embedding);
                 try {
-                    await this.db.exec("SAVEPOINT add_vec");
                     await this.db.run("INSERT OR REPLACE INTO vec_logs(rowid, embedding) VALUES (?, vector(?))", [vecRowId, vectorJson]);
-                    await this.db.exec("RELEASE SAVEPOINT add_vec");
                 }
-                catch (_vecError) {
-                    try {
-                        await this.db.exec("ROLLBACK TO SAVEPOINT add_vec");
-                    }
-                    catch {
-                        // ignore rollback failures
-                    }
+                catch (vecError) {
+                    console.error(`[Core][DB][addLog] Vector insert failed for streamId=${streamId} logId=${id}:`, vecError);
                     // Don't fail the whole transaction if vector insert fails
                 }
             }
@@ -150,38 +145,68 @@ export class DbService {
         return { id };
     }
     async searchLogs(query, streamId, limit = 10) {
+        console.log(`[Core][DB][searchLogs] query=\"${query}\" streamId=${streamId ?? "all"} limit=${limit}`);
+        const normalizedQuery = query.trim().toLowerCase();
+        const minSimilarity = 0.65;
         const embedding = await this.ollama.generateEmbedding(query);
-        if (!embedding)
+        if (!embedding) {
+            console.warn("[Core][DB][searchLogs] No embedding returned; returning empty results");
             return [];
+        }
+        console.log(`[Core][DB][searchLogs] Generated embedding dims=${embedding.length}`);
         const vectorJson = JSON.stringify(embedding);
         try {
-            let sql = `
-      SELECT l.content, l.timestamp, l.metadata, k.distance
-      FROM vector_top_k('vec_logs_idx', vector(?), ?) AS k
-      JOIN logs l ON l.rowid = k.id
-    `;
-            const params = [vectorJson, limit];
-            if (streamId) {
-                sql += " WHERE l.stream_id = ?";
-                params.push(streamId);
-            }
-            sql += " ORDER BY k.distance";
-            const rows = await this.db.query(sql, params);
-            return rows.map((row) => {
-                let meta;
+            const distanceFns = ["vector_distance_cos", "vector_distance_l2", "vector_distance"];
+            let lastVectorError;
+            for (const distanceFn of distanceFns) {
                 try {
-                    meta = JSON.parse(row.metadata);
+                    let sql = `
+      SELECT l.content, l.timestamp, l.metadata, ${distanceFn}(v.embedding, vector(?)) AS distance
+      FROM vec_logs v
+      JOIN logs l ON l.rowid = v.rowid
+    `;
+                    const params = [vectorJson];
+                    if (streamId) {
+                        sql += " WHERE l.stream_id = ?";
+                        params.push(streamId);
+                    }
+                    sql += " ORDER BY distance ASC LIMIT ?";
+                    params.push(limit);
+                    console.log(`[Core][DB][searchLogs] Executing vector distance search via ${distanceFn}${streamId ? " with stream filter" : ""}`);
+                    const rows = await this.db.query(sql, params);
+                    console.log(`[Core][DB][searchLogs] Vector search succeeded via ${distanceFn}; rows=${rows.length}`);
+                    const ranked = rows.map((row) => {
+                        let meta;
+                        try {
+                            meta = JSON.parse(row.metadata);
+                        }
+                        catch { /* ignore */ }
+                        const similarity = Math.max(0, 1 - row.distance);
+                        const lexicalMatch = normalizedQuery.length > 0 && row.content.toLowerCase().includes(normalizedQuery);
+                        return {
+                            content: row.content,
+                            timestamp: row.timestamp,
+                            similarity,
+                            metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined,
+                            lexicalMatch,
+                        };
+                    });
+                    const filtered = ranked
+                        .filter((row) => row.lexicalMatch || (row.similarity ?? 0) >= minSimilarity)
+                        .slice(0, limit)
+                        .map(({ lexicalMatch: _lexicalMatch, ...result }) => result);
+                    console.log(`[Core][DB][searchLogs] Relevance filter kept ${filtered.length}/${rows.length} rows (minSimilarity=${minSimilarity})`);
+                    return filtered;
                 }
-                catch { /* ignore */ }
-                return {
-                    content: row.content,
-                    timestamp: row.timestamp,
-                    similarity: 1 - row.distance,
-                    metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined
-                };
-            });
+                catch (fnError) {
+                    lastVectorError = fnError;
+                    console.warn(`[Core][DB][searchLogs] ${distanceFn} search path failed; trying next path`, fnError);
+                }
+            }
+            throw lastVectorError ?? new Error("No vector distance function path succeeded");
         }
-        catch (_e) {
+        catch (e) {
+            console.error("[Core][DB][searchLogs] Vector search failed on all paths; falling back to keyword LIKE search:", e);
             let fallbackSql = `
         SELECT content, timestamp, metadata
         FROM logs
@@ -195,6 +220,7 @@ export class DbService {
             fallbackSql += " ORDER BY timestamp DESC LIMIT ?";
             fallbackParams.push(limit);
             const rows = await this.db.query(fallbackSql, fallbackParams);
+            console.log(`[Core][DB][searchLogs] Fallback LIKE search returned ${rows.length} rows`);
             return rows.map((row) => {
                 let meta;
                 try {

@@ -6,6 +6,7 @@ export declare class DbService {
     private db;
     readonly auth: AuthService;
     private ollama;
+    private warnedLastInsertRowidFallback;
     constructor(db: DatabaseAdapter, auth: AuthService, ollama: OllamaService);
     createProject(name: string): Promise<Project>;
     getProject(id: string): Promise<Project | undefined>;

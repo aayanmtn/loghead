@@ -142,8 +142,13 @@ async function main() {
         async ({ streamId, query, limit, page, pageSize }) => {
             try {
                 let url = `/logs?streamId=${streamId}&page=${page}&pageSize=${pageSize}`;
-                if (limit) url += `&limit=${limit}`;
-                if (query) url += `&q=${encodeURIComponent(query)}`;
+
+                if (query) {
+                    const searchLimit = limit ?? pageSize;
+                    url = `/search?streamId=${streamId}&q=${encodeURIComponent(query)}&limit=${searchLimit}`;
+                } else if (limit) {
+                    url += `&limit=${limit}`;
+                }
 
                 const logs = await fetchApi(url);
                 return { content: [{ type: "text", text: JSON.stringify(logs, null, 2) }] };

@@ -9,6 +9,7 @@
     "morgan": "^1.10.0"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev:log": "PORT=3002 npm start | npx @loghead/terminal --token eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjODU2ZTZhMy02NDcwLTRhZjgtYjI3YS1jYTRiZmIzZmRjODMiLCJpc3MiOiJsb2doZWFkIiwiaWF0IjoxNzcxMzY0ODA0fQ.fXjS1rYQss-QmDLqtxQUMFaKvYkS0Xxm2o8qKWkZLoPI6amHT--kmV3bS01-kijFBIQTzIZfSUGVr5aok6cjkA"
   }
 }
