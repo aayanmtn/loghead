@@ -20,17 +20,17 @@ export class LocalLibSqlAdapter {
         };
     }
     async exec(sql) {
-        this.db.exec(sql);
+        await this.db.exec(sql);
     }
     async transaction(fn) {
-        this.db.exec("BEGIN");
+        await this.db.exec("BEGIN");
         try {
             const result = await fn();
-            this.db.exec("COMMIT");
+            await this.db.exec("COMMIT");
             return result;
         }
         catch (e) {
-            this.db.exec("ROLLBACK");
+            await this.db.exec("ROLLBACK");
             throw e;
         }
     }

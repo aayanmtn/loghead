@@ -349,6 +349,15 @@ export function LogheadDashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Issue Grouping State
+  const [viewMode, setViewMode] = useState<"logs" | "issues">("logs");
+  const [issues, setIssues] = useState<any[]>([]);
+  const [issueFilter, setIssueFilter] = useState<"all" | "open" | "resolved">(
+    "open",
+  );
+  const [expandedIssue, setExpandedIssue] = useState<string | null>(null);
+  const [issueDetails, setIssueDetails] = useState<any>(null); // { issue: ..., logs: ... }
+
   // Auto-scroll effect
   useEffect(() => {
     if (isAutoScroll && logContainerRef.current) {
@@ -455,6 +464,72 @@ export function LogheadDashboard() {
       console.error("Failed to fetch logs", err);
     }
   };
+
+  const fetchIssues = async (projectId: string) => {
+    try {
+      let url = `/api/issues?projectId=${projectId}`;
+      if (issueFilter !== "all") url += `&status=${issueFilter}`;
+
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setIssues(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch issues", e);
+    }
+  };
+
+  const fetchIssueDetails = async (issueId: string) => {
+    try {
+      const res = await fetch(`/api/issues/${issueId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setIssueDetails(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch issue details", e);
+    }
+  };
+
+  const resolveIssue = async (
+    issueId: string,
+    newStatus: "open" | "resolved",
+  ) => {
+    try {
+      await fetch(`/api/issues/${issueId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      // Refresh
+      if (selectedProject) fetchIssues(selectedProject);
+      if (expandedIssue === issueId && issueDetails) {
+        setIssueDetails({
+          ...issueDetails,
+          issue: { ...issueDetails.issue, status: newStatus },
+        });
+      }
+    } catch (e) {
+      console.error("Failed to resolve issue", e);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === "issues" && selectedProject) {
+      fetchIssues(selectedProject);
+      const interval = setInterval(() => fetchIssues(selectedProject), 5000);
+      return () => clearInterval(interval);
+    }
+  }, [viewMode, selectedProject, issueFilter]);
+
+  useEffect(() => {
+    if (expandedIssue) {
+      fetchIssueDetails(expandedIssue);
+    } else {
+      setIssueDetails(null);
+    }
+  }, [expandedIssue]);
 
   const createProject = async () => {
     if (!newProjectName.trim()) return;
@@ -800,204 +875,396 @@ export function LogheadDashboard() {
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-6 sm:px-6 sm:py-8">
         {selectedProject ? (
           <div className="h-full flex flex-col space-y-6">
-            {currentStream ? (
-              <div className="flex-1 flex flex-col space-y-4 min-h-0">
-                {/* Stream Identity + Token */}
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 shrink-0">
-                  <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,auto)_1fr] gap-x-6 gap-y-2 items-center">
-                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                      Stream ID
-                    </div>
-                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                      Stream Token
-                    </div>
+            <div className="flex items-center gap-6 border-b border-zinc-800 px-2">
+              <button
+                onClick={() => setViewMode("logs")}
+                className={cn(
+                  "px-1 py-3 text-sm font-medium border-b-2 transition-colors",
+                  viewMode === "logs"
+                    ? "border-emerald-500 text-white"
+                    : "border-transparent text-zinc-400 hover:text-zinc-200",
+                )}
+              >
+                Logs
+              </button>
+              <button
+                onClick={() => setViewMode("issues")}
+                className={cn(
+                  "px-1 py-3 text-sm font-medium border-b-2 transition-colors",
+                  viewMode === "issues"
+                    ? "border-emerald-500 text-white"
+                    : "border-transparent text-zinc-400 hover:text-zinc-200",
+                )}
+              >
+                Issues
+              </button>
+            </div>
 
-                    <div
-                      className="text-sm font-mono text-zinc-300 truncate"
-                      title={currentStream.id}
-                    >
-                      {currentStream.id}
-                    </div>
-
-                    <div className="min-w-0">
-                      {streamTokenLoading && (
-                        <div className="text-sm text-zinc-500 animate-pulse">
-                          Loading stream token...
-                        </div>
-                      )}
-
-                      {streamTokenError && (
-                        <div className="text-sm text-red-500">
-                          Error loading token: {streamTokenError}
-                        </div>
-                      )}
-
-                      {streamToken && (
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div
-                            className="flex-1 min-w-0 text-sm font-mono text-zinc-300 truncate"
-                            title={streamToken}
-                          >
-                            {streamToken}
-                          </div>
-                          <button
-                            onClick={copyStreamToken}
-                            className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
-                            title="Copy Stream Token"
-                          >
-                            {streamTokenCopied ? (
-                              <Check className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col min-h-0">
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-950">
-                    <div className="flex items-center gap-2 min-w-0 flex-1 max-w-xl">
-                      <Search className="w-4 h-4 text-zinc-500 shrink-0" />
-                      <input
-                        ref={searchInputRef}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search logs (Cmd/Ctrl+K)"
-                        className="w-full bg-transparent outline-none text-sm text-zinc-100 placeholder:text-zinc-500"
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery("")}
-                          className="text-xs text-zinc-500 hover:text-white shrink-0"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetch("/api/ingest", {
-                              method: "POST",
-                              headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `Bearer ${streamToken}`,
-                              },
-                              body: JSON.stringify({
-                                streamId: currentStream.id,
-                                logs: [
-                                  `Test log entry at ${new Date().toISOString()}`,
-                                ],
-                              }),
-                            });
-                            if (res.ok) {
-                              console.log("Test log sent");
-                              fetchLogs(currentStream.id);
-                            } else {
-                              console.error(
-                                "Failed to send test log",
-                                await res.text(),
-                              );
-                            }
-                          } catch (e) {
-                            console.error("Error sending test log", e);
-                          }
-                        }}
-                        className="text-[10px] px-3 py-1.5 rounded font-bold uppercase tracking-wider border border-emerald-500/30 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 transition-colors"
-                      >
-                        Send Test Log
-                      </button>
-                      <button
-                        onClick={() => setIsAutoScroll(!isAutoScroll)}
-                        className={cn(
-                          "text-[10px] px-3 py-1.5 rounded font-bold uppercase tracking-wider border transition-colors",
-                          isAutoScroll
-                            ? "border-emerald-500/30 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30"
-                            : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-300",
-                        )}
-                      >
-                        {isAutoScroll ? "Auto-scroll On" : "Auto-scroll Off"}
-                      </button>
-                    </div>
-                  </div>
-                  <div
-                    ref={logContainerRef}
-                    className="flex-1 bg-[#0d0d0d] font-mono text-sm overflow-y-auto p-4 scroll-smooth"
-                  >
-                    <ErrorBoundary>
-                      {searchQuery ? (
-                        isSearching ? (
-                          <div className="text-zinc-500">Searching...</div>
-                        ) : searchResults.length > 0 ? (
-                          <div className="space-y-3">
-                            {searchResults.map((result, idx) => (
-                              <div
-                                key={`${result.timestamp}-${idx}`}
-                                className="rounded border border-zinc-800 bg-zinc-950/60 p-3"
-                              >
-                                <div className="text-xs text-zinc-500 mb-1">
-                                  {new Date(result.timestamp).toISOString()}
-                                </div>
-                                <div className="text-zinc-200 break-words">
-                                  {highlightText(result.content, searchQuery)}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-zinc-500">
-                            No matching logs found.
-                          </div>
-                        )
-                      ) : logs ? (
-                        <pre className="whitespace-pre-wrap text-zinc-300 break-all font-mono leading-relaxed text-xs">
-                          {logs}
-                        </pre>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-zinc-700 italic">
-                          <Activity className="w-8 h-8 mb-2 opacity-50" />
-                          <p>Waiting for logs...</p>
-                        </div>
-                      )}
-                    </ErrorBoundary>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {streams.map((stream) => (
-                  <button
-                    key={stream.id}
-                    onClick={() => setSelectedStream(stream.id)}
-                    className="group text-left p-4 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 group-hover:bg-zinc-700 group-hover:text-white transition-colors">
-                        <Box className="w-5 h-5" />
+            {viewMode === "logs" ? (
+              currentStream ? (
+                <div className="flex-1 flex flex-col space-y-4 min-h-0">
+                  {/* Stream Identity + Token */}
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 shrink-0">
+                    <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,auto)_1fr] gap-x-6 gap-y-2 items-center">
+                      <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                        Stream ID
                       </div>
-                      <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                        {stream.type}
-                      </span>
+                      <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                        Stream Token
+                      </div>
+
+                      <div
+                        className="text-sm font-mono text-zinc-300 truncate"
+                        title={currentStream.id}
+                      >
+                        {currentStream.id}
+                      </div>
+
+                      <div className="min-w-0">
+                        {streamTokenLoading && (
+                          <div className="text-sm text-zinc-500 animate-pulse">
+                            Loading stream token...
+                          </div>
+                        )}
+
+                        {streamTokenError && (
+                          <div className="text-sm text-red-500">
+                            Error loading token: {streamTokenError}
+                          </div>
+                        )}
+
+                        {streamToken && (
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className="flex-1 min-w-0 text-sm font-mono text-zinc-300 truncate"
+                              title={streamToken}
+                            >
+                              {streamToken}
+                            </div>
+                            <button
+                              onClick={copyStreamToken}
+                              className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                              title="Copy Stream Token"
+                            >
+                              {streamTokenCopied ? (
+                                <Check className="w-4 h-4 text-green-500" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="font-medium text-white group-hover:text-emerald-400 transition-colors">
-                      {stream.name}
+                  </div>
+
+                  <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col min-h-0">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-950">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 max-w-xl">
+                        <Search className="w-4 h-4 text-zinc-500 shrink-0" />
+                        <input
+                          ref={searchInputRef}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search logs (Cmd/Ctrl+K)"
+                          className="w-full bg-transparent outline-none text-sm text-zinc-100 placeholder:text-zinc-500"
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery("")}
+                            className="text-xs text-zinc-500 hover:text-white shrink-0"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch("/api/ingest", {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  Authorization: `Bearer ${streamToken}`,
+                                },
+                                body: JSON.stringify({
+                                  streamId: currentStream.id,
+                                  logs: [
+                                    `Test log entry at ${new Date().toISOString()}`,
+                                  ],
+                                }),
+                              });
+                              if (res.ok) {
+                                console.log("Test log sent");
+                                fetchLogs(currentStream.id);
+                              } else {
+                                console.error(
+                                  "Failed to send test log",
+                                  await res.text(),
+                                );
+                              }
+                            } catch (e) {
+                              console.error("Error sending test log", e);
+                            }
+                          }}
+                          className="text-[10px] px-3 py-1.5 rounded font-bold uppercase tracking-wider border border-emerald-500/30 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 transition-colors"
+                        >
+                          Send Test Log
+                        </button>
+                        <button
+                          onClick={() => setIsAutoScroll(!isAutoScroll)}
+                          className={cn(
+                            "text-[10px] px-3 py-1.5 rounded font-bold uppercase tracking-wider border transition-colors",
+                            isAutoScroll
+                              ? "border-emerald-500/30 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30"
+                              : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-300",
+                          )}
+                        >
+                          {isAutoScroll ? "Auto-scroll On" : "Auto-scroll Off"}
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-xs text-zinc-500 mt-1 font-mono">
-                      {stream.id.substring(0, 8)}...
+                    <div
+                      ref={logContainerRef}
+                      className="flex-1 bg-[#0d0d0d] font-mono text-sm overflow-y-auto p-4 scroll-smooth"
+                    >
+                      <ErrorBoundary>
+                        {searchQuery ? (
+                          isSearching ? (
+                            <div className="text-zinc-500">Searching...</div>
+                          ) : searchResults.length > 0 ? (
+                            <div className="space-y-3">
+                              {searchResults.map((result, idx) => (
+                                <div
+                                  key={`${result.timestamp}-${idx}`}
+                                  className="rounded border border-zinc-800 bg-zinc-950/60 p-3"
+                                >
+                                  <div className="text-xs text-zinc-500 mb-1">
+                                    {new Date(result.timestamp).toISOString()}
+                                  </div>
+                                  <div className="text-zinc-200 break-words">
+                                    {highlightText(result.content, searchQuery)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-zinc-500">
+                              No matching logs found.
+                            </div>
+                          )
+                        ) : logs ? (
+                          <pre className="whitespace-pre-wrap text-zinc-300 break-all font-mono leading-relaxed text-xs">
+                            {logs}
+                          </pre>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-zinc-700 italic">
+                            <Activity className="w-8 h-8 mb-2 opacity-50" />
+                            <p>Waiting for logs...</p>
+                          </div>
+                        )}
+                      </ErrorBoundary>
                     </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {streams.map((stream) => (
+                    <button
+                      key={stream.id}
+                      onClick={() => setSelectedStream(stream.id)}
+                      className="group text-left p-4 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl transition-all"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 group-hover:bg-zinc-700 group-hover:text-white transition-colors">
+                          <Box className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
+                          {stream.type}
+                        </span>
+                      </div>
+                      <div className="font-medium text-white group-hover:text-emerald-400 transition-colors">
+                        {stream.name}
+                      </div>
+                      <div className="text-xs text-zinc-500 mt-1 font-mono">
+                        {stream.id.substring(0, 8)}...
+                      </div>
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setIsCreateStreamOpen(true)}
+                    className="group flex flex-col items-center justify-center p-4 border border-dashed border-zinc-800 hover:border-zinc-700 rounded-xl transition-all hover:bg-zinc-900/20 text-zinc-500 hover:text-zinc-300"
+                  >
+                    <Plus className="w-6 h-6 mb-2 opacity-50 group-hover:opacity-100" />
+                    <span className="text-sm font-medium">
+                      Create New Stream
+                    </span>
                   </button>
-                ))}
-                <button
-                  onClick={() => setIsCreateStreamOpen(true)}
-                  className="group flex flex-col items-center justify-center p-4 border border-dashed border-zinc-800 hover:border-zinc-700 rounded-xl transition-all hover:bg-zinc-900/20 text-zinc-500 hover:text-zinc-300"
-                >
-                  <Plus className="w-6 h-6 mb-2 opacity-50 group-hover:opacity-100" />
-                  <span className="text-sm font-medium">Create New Stream</span>
-                </button>
+                </div>
+              )
+            ) : (
+              <div className="flex-1 min-h-0 flex flex-col mt-4">
+                {/* Issues Header */}
+                <div className="flex items-center justify-between mb-4 px-2">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <span className="text-emerald-400">●</span>
+                    Issues ({
+                      issues.filter((i) => i.status === "open").length
+                    }{" "}
+                    active)
+                  </h2>
+                  <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                    <button
+                      onClick={() => setIssueFilter("all")}
+                      className={cn(
+                        "px-3 py-1 text-xs font-medium rounded transition-colors",
+                        issueFilter === "all"
+                          ? "bg-zinc-700 text-white"
+                          : "text-zinc-400 hover:text-white",
+                      )}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setIssueFilter("open")}
+                      className={cn(
+                        "px-3 py-1 text-xs font-medium rounded transition-colors",
+                        issueFilter === "open"
+                          ? "bg-zinc-700 text-white"
+                          : "text-zinc-400 hover:text-white",
+                      )}
+                    >
+                      Open
+                    </button>
+                    <button
+                      onClick={() => setIssueFilter("resolved")}
+                      className={cn(
+                        "px-3 py-1 text-xs font-medium rounded transition-colors",
+                        issueFilter === "resolved"
+                          ? "bg-zinc-700 text-white"
+                          : "text-zinc-400 hover:text-white",
+                      )}
+                    >
+                      Resolved
+                    </button>
+                  </div>
+                </div>
+
+                {/* Issues List */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                  {issues.length === 0 ? (
+                    <div className="text-center py-12 text-zinc-500 italic">
+                      No issues found.
+                    </div>
+                  ) : (
+                    issues.map((issue) => (
+                      <div
+                        key={issue.id}
+                        className="border border-zinc-800 bg-zinc-900/40 rounded-lg overflow-hidden"
+                      >
+                        <div
+                          className={cn(
+                            "p-4 cursor-pointer hover:bg-zinc-900/60 transition-colors flex items-start gap-4 border-l-4",
+                            issue.status === "open"
+                              ? "border-l-red-500"
+                              : "border-l-emerald-500",
+                          )}
+                          onClick={() =>
+                            setExpandedIssue(
+                              expandedIssue === issue.id ? null : issue.id,
+                            )
+                          }
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              {issue.status === "open" ? (
+                                <span className="text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded uppercase">
+                                  Error
+                                </span>
+                              ) : (
+                                <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">
+                                  Resolved
+                                </span>
+                              )}
+                              <h3 className="font-mono text-sm font-medium text-zinc-200 truncate">
+                                {issue.title}
+                              </h3>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-zinc-500">
+                              <span>
+                                Occurrences:{" "}
+                                <strong className="text-zinc-300">
+                                  {issue.occurrence_count}
+                                </strong>
+                              </span>
+                              <span>
+                                First seen:{" "}
+                                {new Date(issue.first_seen).toLocaleString()}
+                              </span>
+                              <span>
+                                Last seen:{" "}
+                                {new Date(issue.last_seen).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronDown
+                            className={cn(
+                              "w-5 h-5 text-zinc-600 transition-transform",
+                              expandedIssue === issue.id ? "rotate-180" : "",
+                            )}
+                          />
+                        </div>
+
+                        {expandedIssue === issue.id && (
+                          <div className="border-t border-zinc-800 bg-zinc-950 p-4 animate-in slide-in-from-top-2 duration-200">
+                            <div className="flex justify-end mb-4">
+                              {issue.status === "open" ? (
+                                <button
+                                  onClick={() =>
+                                    resolveIssue(issue.id, "resolved")
+                                  }
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
+                                >
+                                  Mark as Resolved
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => resolveIssue(issue.id, "open")}
+                                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold uppercase tracking-wider rounded transition-colors"
+                                >
+                                  Reopen Issue
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                              Recent Occurrences
+                            </div>
+                            <div className="space-y-1 font-mono text-xs">
+                              {issueDetails?.logs?.map((log: any) => (
+                                <div
+                                  key={log.id}
+                                  className="bg-zinc-900/50 p-2 rounded text-zinc-400 break-all"
+                                >
+                                  <span className="text-zinc-600 mr-2">
+                                    [{new Date(log.timestamp).toISOString()}]
+                                  </span>
+                                  {log.content}
+                                </div>
+                              ))}
+                              {!issueDetails && (
+                                <div className="text-zinc-600 italic">
+                                  Loading logs...
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
