@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 export class DbService {
     db;
     auth;
@@ -106,6 +106,9 @@ export class DbService {
         }
         const id = randomUUID();
         const metadataStr = JSON.stringify(metadata);
+        // Fetch project_id for error grouping
+        const stream = await this.getStream(streamId);
+        const projectId = stream?.project_id;
         await this.db.transaction(async () => {
             // 1. Insert into logs
             const result = await this.db.run("INSERT INTO logs (id, stream_id, content, metadata) VALUES (?, ?, ?, ?)", [
@@ -123,6 +126,10 @@ export class DbService {
             if (rowid === undefined) {
                 console.error(`[Core][DB][addLog] Failed to resolve rowid for log insertion; vector index insert skipped for logId=${id}`);
                 return;
+            }
+            // 2. Error Grouping
+            if (projectId) {
+                await this.processErrorGrouping(streamId, projectId, rowid, content, metadata);
             }
             // 3. Insert into vec_logs if embedding exists
             if (embedding && embedding.length > 0) {
@@ -262,5 +269,67 @@ export class DbService {
     }
     async close() {
         await this.db.close();
+    }
+    async processErrorGrouping(streamId, projectId, logRowId, content, metadata) {
+        // Step A: Detect Error
+        const isError = metadata.severity === "ERROR" ||
+            metadata.level === "error" ||
+            content.includes("Error:") ||
+            content.includes("Exception") ||
+            content.includes("Unhandled") ||
+            content.includes("ECONNREFUSED") ||
+            /HTTP\s+5\d{2}/.test(content);
+        if (!isError)
+            return;
+        // Step B: Generate Fingerprint
+        const fingerprint = this.generateFingerprint(content);
+        // Step C: Find Existing Issue
+        const existingIssue = await this.db.get("SELECT id, occurrence_count FROM issues WHERE project_id = ? AND fingerprint = ? LIMIT 1", [projectId, fingerprint]);
+        let issueId;
+        if (existingIssue) {
+            // Step D: Update Issue
+            issueId = existingIssue.id;
+            await this.db.run("UPDATE issues SET last_seen = CURRENT_TIMESTAMP, occurrence_count = occurrence_count + 1, status = CASE WHEN status = 'resolved' THEN 'open' ELSE status END WHERE id = ?", [issueId]);
+        }
+        else {
+            // Step E: Create Issue
+            issueId = randomUUID();
+            const title = content.split('\n')[0].substring(0, 120);
+            await this.db.run(`INSERT INTO issues (id, project_id, fingerprint, title, status, first_seen, last_seen, occurrence_count, created_at)
+         VALUES (?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP)`, [issueId, projectId, fingerprint, title]);
+        }
+        // Link log to issue
+        await this.db.run("UPDATE logs SET issue_id = ? WHERE rowid = ?", [issueId, logRowId]);
+    }
+    generateFingerprint(content) {
+        const firstLine = content.split('\n')[0];
+        const normalized = firstLine
+            .toLowerCase()
+            .replace(/\d+/g, '') // Remove numbers
+            .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '') // Remove UUIDs
+            .replace(/0x[0-9a-f]+/g, '') // Remove hex
+            .trim();
+        return createHash('sha256').update(normalized).digest('hex');
+    }
+    async getIssues(projectId, status, limit = 50) {
+        let sql = "SELECT * FROM issues WHERE project_id = ?";
+        const params = [projectId];
+        if (status) {
+            sql += " AND status = ?";
+            params.push(status);
+        }
+        sql += " ORDER BY last_seen DESC LIMIT ?";
+        params.push(limit);
+        return this.db.query(sql, params);
+    }
+    async getIssue(id) {
+        const issue = await this.db.get("SELECT * FROM issues WHERE id = ?", [id]);
+        if (!issue)
+            return null;
+        const logs = await this.db.query("SELECT * FROM logs WHERE issue_id = ? ORDER BY timestamp DESC LIMIT 100", [id]);
+        return { issue, logs };
+    }
+    async updateIssueStatus(id, status) {
+        await this.db.run("UPDATE issues SET status = ? WHERE id = ?", [status, id]);
     }
 }

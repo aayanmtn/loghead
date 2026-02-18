@@ -27,7 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
       }),
       vscode.window.createTreeView("loghead.logs", {
         treeDataProvider: logsView,
-      })
+      }),
     );
 
     context.subscriptions.push(
@@ -121,7 +121,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (projects.length === 0) {
           const create = await vscode.window.showWarningMessage(
             "No projects found. Create a project first?",
-            "Create Project"
+            "Create Project",
           );
 
           if (create === "Create Project") {
@@ -136,7 +136,7 @@ export function activate(context: vscode.ExtensionContext) {
             label: p.name,
             description: p.id,
           })),
-          { placeHolder: "Select a project" }
+          { placeHolder: "Select a project" },
         );
 
         if (!projectPick) return;
@@ -148,8 +148,8 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Ask stream type
         const streamType = await vscode.window.showQuickPick(
-          ["terminal", "docker", "browser", "opentelemetry"],
-          { placeHolder: "Select stream type" }
+          ["terminal", "docker", "browser", "opentelemetry", "aws"],
+          { placeHolder: "Select stream type" },
         );
         if (!streamType) return;
 
@@ -157,10 +157,12 @@ export function activate(context: vscode.ExtensionContext) {
           await api.createStream(
             projectPick.description!,
             streamName,
-            streamType
+            streamType,
           );
 
-          vscode.window.showInformationMessage(`Stream "${streamName}" created`);
+          vscode.window.showInformationMessage(
+            `Stream "${streamName}" created`,
+          );
 
           projectsView.refresh();
         } catch (e) {
@@ -169,25 +171,28 @@ export function activate(context: vscode.ExtensionContext) {
       }),
 
       // >> Command to copy stream token
-      vscode.commands.registerCommand("loghead.copyStreamToken", async (node) => {
-        if (!serverState.running) {
-          vscode.window.showErrorMessage("Loghead is not running");
-          return;
-        }
+      vscode.commands.registerCommand(
+        "loghead.copyStreamToken",
+        async (node) => {
+          if (!serverState.running) {
+            vscode.window.showErrorMessage("Loghead is not running");
+            return;
+          }
 
-        if (!node?.id) return;
+          if (!node?.id) return;
 
-        try {
-          const token = await api.getStreamToken(node.id);
-          await vscode.env.clipboard.writeText(token);
+          try {
+            const token = await api.getStreamToken(node.id);
+            await vscode.env.clipboard.writeText(token);
 
-          vscode.window.showInformationMessage(
-            `Stream token copied for ${node.name}`
-          );
-        } catch (e) {
-          vscode.window.showErrorMessage(String(e));
-        }
-      }),
+            vscode.window.showInformationMessage(
+              `Stream token copied for ${node.name}`,
+            );
+          } catch (e) {
+            vscode.window.showErrorMessage(String(e));
+          }
+        },
+      ),
 
       // >> Command to copy stream ingest command
       vscode.commands.registerCommand(
@@ -204,12 +209,12 @@ export function activate(context: vscode.ExtensionContext) {
             await vscode.env.clipboard.writeText(command);
 
             vscode.window.showInformationMessage(
-              `Stream ingest command copied for ${node.name}`
+              `Stream ingest command copied for ${node.name}`,
             );
           } catch (e) {
             vscode.window.showErrorMessage(String(e));
           }
-        }
+        },
       ),
 
       // >> Command to delete a stream
@@ -224,7 +229,7 @@ export function activate(context: vscode.ExtensionContext) {
         const confirm = await vscode.window.showWarningMessage(
           `Delete stream "${node.name}"?`,
           { modal: true },
-          "Delete"
+          "Delete",
         );
         if (confirm !== "Delete") return;
 
@@ -251,13 +256,15 @@ export function activate(context: vscode.ExtensionContext) {
         const confirm = await vscode.window.showWarningMessage(
           `Delete project "${node.name}"?\nAll streams and logs will be removed.`,
           { modal: true },
-          "Delete"
+          "Delete",
         );
         if (confirm !== "Delete") return;
 
         try {
           await api.deleteProject(node.id);
-          vscode.window.showInformationMessage(`Project "${node.name}" deleted`);
+          vscode.window.showInformationMessage(
+            `Project "${node.name}" deleted`,
+          );
           projectsView.refresh();
         } catch (e) {
           vscode.window.showErrorMessage(String(e));
@@ -277,7 +284,7 @@ export function activate(context: vscode.ExtensionContext) {
             label: p.name,
             description: p.id,
           })),
-          { placeHolder: "Select a project" }
+          { placeHolder: "Select a project" },
         );
 
         if (!pick) return;
@@ -302,7 +309,7 @@ export function activate(context: vscode.ExtensionContext) {
             description: `${p.name} • ${s.type}`,
             projectId: p.id,
             streamId: s.id,
-          }))
+          })),
         );
 
         if (!allStreams.length) {
@@ -328,7 +335,7 @@ export function activate(context: vscode.ExtensionContext) {
       // >> Command to refresh logs view
       vscode.commands.registerCommand("loghead.refreshLogs", () => {
         logsView.loadLogs();
-      })
+      }),
     );
 
     outputChannel.appendLine("Loghead extension activated successfully.");

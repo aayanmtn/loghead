@@ -30,8 +30,8 @@ export async function startApiServer(db: DbService, auth: AuthService) {
   } else {
     console.warn(
       chalk.yellow(
-        "Frontend build not found. Run 'npm run build' in packages/core/frontend to build the UI."
-      )
+        "Frontend build not found. Run 'npm run build' in packages/core/frontend to build the UI.",
+      ),
     );
   }
 
@@ -98,7 +98,7 @@ export async function startApiServer(db: DbService, auth: AuthService) {
       /* ... existing loop code ... */
       for (const resourceLog of resourceLogs) {
         const resourceAttrs = parseOtlpAttributes(
-          resourceLog.resource?.attributes
+          resourceLog.resource?.attributes,
         );
 
         if (resourceLog.scopeLogs) {
@@ -161,7 +161,9 @@ export async function startApiServer(db: DbService, auth: AuthService) {
       console.log(`[API] Ingesting logs for stream: ${streamId}`);
 
       if (streamId !== payload.streamId) {
-        console.warn(`[API] /api/ingest Forbidden: Token streamId ${payload.streamId} != body streamId ${streamId}`);
+        console.warn(
+          `[API] /api/ingest Forbidden: Token streamId ${payload.streamId} != body streamId ${streamId}`,
+        );
         return res.status(403).send("Forbidden: Token does not match streamId");
       }
 
@@ -189,7 +191,9 @@ export async function startApiServer(db: DbService, auth: AuthService) {
         }
       }
 
-      console.log(`[API] /api/ingest Successfully added ${logEntries.length} logs`);
+      console.log(
+        `[API] /api/ingest Successfully added ${logEntries.length} logs`,
+      );
       res.json({ success: true, count: logEntries.length });
     } catch (e) {
       console.error("Ingest error:", e);
@@ -276,7 +280,12 @@ export async function startApiServer(db: DbService, auth: AuthService) {
         return res.status(400).send("Missing type");
       }
 
-      const stream = await db.createStream(projectId, type, name.trim(), config || {});
+      const stream = await db.createStream(
+        projectId,
+        type,
+        name.trim(),
+        config || {},
+      );
       res.json(stream);
     } catch (e) {
       console.error("Create stream error:", e);
@@ -290,7 +299,7 @@ export async function startApiServer(db: DbService, auth: AuthService) {
       body.projectId,
       body.type,
       body.name,
-      body.config || {}
+      body.config || {},
     );
     res.json(stream);
   });
@@ -342,6 +351,53 @@ export async function startApiServer(db: DbService, auth: AuthService) {
       logs = await db.getRecentLogs(streamId, limit, offset);
     }
     res.json(logs);
+  });
+
+  app.get("/api/issues", async (req, res) => {
+    const projectId = req.query.projectId as string;
+    const status = req.query.status as string;
+    const limit = parseInt((req.query.limit as string) || "50");
+
+    if (!projectId) {
+      return res.status(400).send("Missing projectId");
+    }
+
+    try {
+      const issues = await db.getIssues(projectId, status, limit);
+      res.json(issues);
+    } catch (e) {
+      console.error("Error fetching issues:", e);
+      res.status(500).send(String(e));
+    }
+  });
+
+  app.get("/api/issues/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+      const data = await db.getIssue(id);
+      if (!data) return res.status(404).send("Issue not found");
+      res.json(data);
+    } catch (e) {
+      console.error("Error fetching issue details:", e);
+      res.status(500).send(String(e));
+    }
+  });
+
+  app.patch("/api/issues/:id", async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (status !== "open" && status !== "resolved") {
+      return res.status(400).send("Invalid status");
+    }
+
+    try {
+      await db.updateIssueStatus(id, status);
+      res.json({ success: true });
+    } catch (e) {
+      console.error("Error updating issue:", e);
+      res.status(500).send(String(e));
+    }
   });
 
   // SPA fallback

@@ -46,6 +46,33 @@ export async function migrate(db, verbose = true) {
       FOREIGN KEY(stream_id) REFERENCES data_streams(id) ON DELETE CASCADE
     );
   `);
+    // Issues table (Error Grouping)
+    await db.exec(`
+    CREATE TABLE IF NOT EXISTS issues (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      fingerprint TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      first_seen DATETIME NOT NULL,
+      last_seen DATETIME NOT NULL,
+      occurrence_count INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+  `);
+    await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_issues_project_fingerprint 
+    ON issues(project_id, fingerprint);
+  `);
+    // Add issue_id to logs if missing
+    try {
+        await db.exec("ALTER TABLE logs ADD COLUMN issue_id TEXT;");
+    }
+    catch (e) {
+        // Column likely exists
+    }
+    await db.exec("CREATE INDEX IF NOT EXISTS idx_logs_issue_id ON logs(issue_id);");
     // Native Turso/libSQL vector table + index
     let hasVecTable = false;
     let hasNativeVectorColumn = false;

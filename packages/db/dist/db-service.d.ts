@@ -25,4 +25,9 @@ export declare class DbService {
     searchLogs(query: string, streamId?: string, limit?: number): Promise<SearchResult[]>;
     getRecentLogs(streamId: string, limit?: number, offset?: number): Promise<Log[]>;
     close(): Promise<void>;
+    private processErrorGrouping;
+    private generateFingerprint;
+    getIssues(projectId: string, status?: string, limit?: number): Promise<any[]>;
+    getIssue(id: string): Promise<any>;
+    updateIssueStatus(id: string, status: 'open' | 'resolved'): Promise<void>;
 }

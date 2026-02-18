@@ -52,6 +52,38 @@ export async function migrate(db: DatabaseAdapter, verbose = true) {
     );
   `);
 
+  // Issues table (Error Grouping)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS issues (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      fingerprint TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      first_seen DATETIME NOT NULL,
+      last_seen DATETIME NOT NULL,
+      occurrence_count INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+  `);
+
+  await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_issues_project_fingerprint 
+    ON issues(project_id, fingerprint);
+  `);
+
+  // Add issue_id to logs if missing
+  try {
+    await db.exec("ALTER TABLE logs ADD COLUMN issue_id TEXT;");
+  } catch (e) {
+    // Column likely exists
+  }
+
+  await db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_logs_issue_id ON logs(issue_id);",
+  );
+
   // Native Turso/libSQL vector table + index
   let hasVecTable = false;
   let hasNativeVectorColumn = false;
@@ -61,20 +93,30 @@ export async function migrate(db: DatabaseAdapter, verbose = true) {
       "PRAGMA table_info(vec_logs)",
     );
     hasVecTable = vecTableInfo.length > 0;
-    const embeddingColumn = vecTableInfo.find((col) => col.name === "embedding");
+    const embeddingColumn = vecTableInfo.find(
+      (col) => col.name === "embedding",
+    );
     hasNativeVectorColumn =
-      !!embeddingColumn && embeddingColumn.type.toUpperCase().includes("F32_BLOB");
+      !!embeddingColumn &&
+      embeddingColumn.type.toUpperCase().includes("F32_BLOB");
   } catch (e) {
     // Legacy sqlite-vec virtual table can throw here when vec0 module isn't loaded.
     // Recover by dropping and recreating with native libSQL vector schema.
     const msg = String(e);
-    if (msg.includes("vec0") || msg.includes("Virtual table module not found")) {
+    if (
+      msg.includes("vec0") ||
+      msg.includes("Virtual table module not found")
+    ) {
       hasVecTable = false;
       hasNativeVectorColumn = false;
       try {
         await db.exec("PRAGMA writable_schema = ON;");
-        await db.exec("DELETE FROM sqlite_schema WHERE type='table' AND name='vec_logs';");
-        await db.exec("DELETE FROM sqlite_schema WHERE type='index' AND name='vec_logs_idx';");
+        await db.exec(
+          "DELETE FROM sqlite_schema WHERE type='table' AND name='vec_logs';",
+        );
+        await db.exec(
+          "DELETE FROM sqlite_schema WHERE type='index' AND name='vec_logs_idx';",
+        );
         await db.exec("PRAGMA writable_schema = OFF;");
       } catch {
         // ignore; we'll still attempt native table creation below
@@ -86,7 +128,9 @@ export async function migrate(db: DatabaseAdapter, verbose = true) {
 
   if (hasVecTable && !hasNativeVectorColumn) {
     if (verbose) {
-      console.warn("[Vector] Migrating legacy vec_logs table to Turso native vector type.");
+      console.warn(
+        "[Vector] Migrating legacy vec_logs table to Turso native vector type.",
+      );
     }
     try {
       await db.exec("ALTER TABLE vec_logs RENAME TO vec_logs_legacy");
