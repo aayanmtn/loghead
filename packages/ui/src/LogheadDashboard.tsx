@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  Component,
+  ErrorInfo,
+  ReactNode,
+} from "react";
 import {
   Activity,
   ChevronDown,
@@ -65,12 +72,15 @@ function highlightText(text: string, query: string) {
     <span>
       {parts.map((part, i) =>
         part.toLowerCase() === query.toLowerCase() ? (
-          <span key={i} className="bg-yellow-500/20 text-yellow-200 rounded px-0.5">
+          <span
+            key={i}
+            className="bg-yellow-500/20 text-yellow-200 rounded px-0.5"
+          >
             {part}
           </span>
         ) : (
           part
-        )
+        ),
       )}
     </span>
   );
@@ -112,7 +122,8 @@ type ConnectPlatform =
   | "windsurf"
   | "cursor"
   | "claudeDesktop"
-  | "vscode";
+  | "vscode"
+  | "aws";
 
 const CONNECT_PLATFORM_TABS: { id: ConnectPlatform; label: string }[] = [
   { id: "claudeCode", label: "Claude Code" },
@@ -120,6 +131,7 @@ const CONNECT_PLATFORM_TABS: { id: ConnectPlatform; label: string }[] = [
   { id: "cursor", label: "Cursor" },
   { id: "claudeDesktop", label: "Claude Desktop" },
   { id: "vscode", label: "VS Code" },
+  { id: "aws", label: "AWS" },
 ];
 
 function normalizeApiBaseUrl(url: string): string {
@@ -148,7 +160,11 @@ function sharedMcpJson(apiUrl: string, token: string): string {
 }`;
 }
 
-function getConnectGuide(platform: ConnectPlatform, apiUrl: string, token: string) {
+function getConnectGuide(
+  platform: ConnectPlatform,
+  apiUrl: string,
+  token: string,
+) {
   switch (platform) {
     case "claudeCode":
       return {
@@ -227,10 +243,62 @@ function getConnectGuide(platform: ConnectPlatform, apiUrl: string, token: strin
   }
 }`,
       };
+    case "aws":
+      return {
+        title: "AWS CloudWatch Logs setup",
+        steps: [
+          "Create a new Node.js Lambda function.",
+          `Set environment variables: LOGHEAD_API_URL=${apiUrl} and LOGHEAD_STREAM_TOKEN=<stream token>.`,
+          "Add a Subscription Filter to your CloudWatch Log Group targeting this Lambda.",
+        ],
+        snippetLabel: "Lambda Function (Node.js)",
+        snippet: `const zlib = require('zlib');
+const https = require('https');
+
+exports.handler = async (event) => {
+    const payload = Buffer.from(event.awslogs.data, 'base64');
+    const decompressed = zlib.gunzipSync(payload);
+    const data = JSON.parse(decompressed.toString());
+    
+    const logs = data.logEvents.map(e => ({
+        content: e.message,
+        metadata: { 
+            logGroup: data.logGroup, 
+            logStream: data.logStream,
+            aws_timestamp: e.timestamp 
+        }
+    }));
+
+    const url = new URL(process.env.LOGHEAD_API_URL + '/api/ingest');
+    const body = JSON.stringify({
+        streamId: process.env.LOGHEAD_STREAM_ID,
+        logs: logs
+    });
+
+    return new Promise((resolve, reject) => {
+        const req = https.request(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + process.env.LOGHEAD_STREAM_TOKEN,
+                'Content-Length': Buffer.byteLength(body)
+            }
+        }, (res) => {
+            res.on('data', () => {});
+            res.on('end', () => resolve());
+        });
+        req.on('error', reject);
+        req.write(body);
+        req.end();
+    });
+};`,
+      };
     default:
       return {
         title: "Setup",
-        steps: ["Use the URL and token above in your MCP client configuration."],
+        steps: [
+          "Use the URL and token above in your MCP client configuration.",
+        ],
         snippetLabel: "",
         snippet: "",
       };
@@ -257,7 +325,9 @@ export function LogheadDashboard() {
 
   // Connection state
   const [isConnectOpen, setIsConnectOpen] = useState(false);
-  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
+  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(
+    null,
+  );
   const [activeConnectPlatform, setActiveConnectPlatform] =
     useState<ConnectPlatform>("claudeCode");
   const [copied, setCopied] = useState(false);
@@ -442,7 +512,10 @@ export function LogheadDashboard() {
         setConnectionInfo(data);
       } else {
         // Fallback or error
-        setConnectionInfo({ token: "Unavailable", mcpUrl: window.location.origin });
+        setConnectionInfo({
+          token: "Unavailable",
+          mcpUrl: window.location.origin,
+        });
       }
     } catch (err) {
       console.error("Failed to fetch connection info", err);
@@ -558,12 +631,12 @@ export function LogheadDashboard() {
   const currentStream = streams.find((s) => s.id === selectedStream);
   const apiBaseUrl = normalizeApiBaseUrl(
     connectionInfo?.mcpUrl ||
-    (typeof window !== "undefined" ? window.location.origin : "")
+      (typeof window !== "undefined" ? window.location.origin : ""),
   );
   const activeGuide = getConnectGuide(
     activeConnectPlatform,
     apiBaseUrl || "https://your-loghead-domain.com",
-    connectionInfo?.token || "<YOUR_MCP_TOKEN>"
+    connectionInfo?.token || "<YOUR_MCP_TOKEN>",
   );
 
   return (
@@ -584,7 +657,9 @@ export function LogheadDashboard() {
                 <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                   <LayoutGrid className="w-4 h-4" />
                 </div>
-                <span className="font-medium text-sm">{currentProject?.name || "Select Project"}</span>
+                <span className="font-medium text-sm">
+                  {currentProject?.name || "Select Project"}
+                </span>
                 <ChevronDown className="w-4 h-4 text-zinc-500" />
               </button>
 
@@ -600,7 +675,9 @@ export function LogheadDashboard() {
                         onClick={() => setSelectedProject(p.id)}
                         className={cn(
                           "w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-zinc-800 transition-colors text-sm",
-                          selectedProject === p.id ? "text-emerald-400" : "text-zinc-300"
+                          selectedProject === p.id
+                            ? "text-emerald-400"
+                            : "text-zinc-300",
                         )}
                       >
                         <div className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">
@@ -647,7 +724,9 @@ export function LogheadDashboard() {
                     <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                       <Activity className="w-4 h-4" />
                     </div>
-                    <span className="font-medium text-sm">{currentStream?.name || "Select Stream"}</span>
+                    <span className="font-medium text-sm">
+                      {currentStream?.name || "Select Stream"}
+                    </span>
                     <ChevronDown className="w-4 h-4 text-zinc-500" />
                   </button>
 
@@ -666,7 +745,9 @@ export function LogheadDashboard() {
                             }}
                             className={cn(
                               "w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-zinc-800 transition-colors text-sm",
-                              selectedStream === s.id ? "text-emerald-400" : "text-zinc-300"
+                              selectedStream === s.id
+                                ? "text-emerald-400"
+                                : "text-zinc-300",
                             )}
                           >
                             <div className="w-4 h-4 rounded border border-current flex items-center justify-center text-[10px]">
@@ -724,25 +805,39 @@ export function LogheadDashboard() {
                 {/* Stream Identity + Token */}
                 <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 shrink-0">
                   <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,auto)_1fr] gap-x-6 gap-y-2 items-center">
-                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Stream ID</div>
-                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Stream Token</div>
+                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      Stream ID
+                    </div>
+                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      Stream Token
+                    </div>
 
-                    <div className="text-sm font-mono text-zinc-300 truncate" title={currentStream.id}>
+                    <div
+                      className="text-sm font-mono text-zinc-300 truncate"
+                      title={currentStream.id}
+                    >
                       {currentStream.id}
                     </div>
 
                     <div className="min-w-0">
                       {streamTokenLoading && (
-                        <div className="text-sm text-zinc-500 animate-pulse">Loading stream token...</div>
+                        <div className="text-sm text-zinc-500 animate-pulse">
+                          Loading stream token...
+                        </div>
                       )}
 
                       {streamTokenError && (
-                        <div className="text-sm text-red-500">Error loading token: {streamTokenError}</div>
+                        <div className="text-sm text-red-500">
+                          Error loading token: {streamTokenError}
+                        </div>
                       )}
 
                       {streamToken && (
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className="flex-1 min-w-0 text-sm font-mono text-zinc-300 truncate" title={streamToken}>
+                          <div
+                            className="flex-1 min-w-0 text-sm font-mono text-zinc-300 truncate"
+                            title={streamToken}
+                          >
                             {streamToken}
                           </div>
                           <button
@@ -794,14 +889,19 @@ export function LogheadDashboard() {
                               },
                               body: JSON.stringify({
                                 streamId: currentStream.id,
-                                logs: [`Test log entry at ${new Date().toISOString()}`],
+                                logs: [
+                                  `Test log entry at ${new Date().toISOString()}`,
+                                ],
                               }),
                             });
                             if (res.ok) {
                               console.log("Test log sent");
                               fetchLogs(currentStream.id);
                             } else {
-                              console.error("Failed to send test log", await res.text());
+                              console.error(
+                                "Failed to send test log",
+                                await res.text(),
+                              );
                             }
                           } catch (e) {
                             console.error("Error sending test log", e);
@@ -817,7 +917,7 @@ export function LogheadDashboard() {
                           "text-[10px] px-3 py-1.5 rounded font-bold uppercase tracking-wider border transition-colors",
                           isAutoScroll
                             ? "border-emerald-500/30 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30"
-                            : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-300"
+                            : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-300",
                         )}
                       >
                         {isAutoScroll ? "Auto-scroll On" : "Auto-scroll Off"}
@@ -849,7 +949,9 @@ export function LogheadDashboard() {
                             ))}
                           </div>
                         ) : (
-                          <div className="text-zinc-500">No matching logs found.</div>
+                          <div className="text-zinc-500">
+                            No matching logs found.
+                          </div>
                         )
                       ) : logs ? (
                         <pre className="whitespace-pre-wrap text-zinc-300 break-all font-mono leading-relaxed text-xs">
@@ -905,9 +1007,12 @@ export function LogheadDashboard() {
               <LayoutGrid className="w-8 h-8 text-zinc-500" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white mb-2">No Project Selected</h3>
+              <h3 className="text-xl font-bold text-white mb-2">
+                No Project Selected
+              </h3>
               <p className="text-zinc-400 max-w-sm">
-                Select a project from the top menu or create a new one to get started with Loghead.
+                Select a project from the top menu or create a new one to get
+                started with Loghead.
               </p>
             </div>
             <button
@@ -921,230 +1026,231 @@ export function LogheadDashboard() {
       </div>
 
       {/* Create Project Modal */}
-      {
-        isCreateProjectOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-                <h3 className="font-semibold text-lg">Create Project</h3>
+      {isCreateProjectOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Create Project</h3>
+              <button
+                onClick={() => setIsCreateProjectOpen(false)}
+                className="text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="e.g., My Awesome App"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && createProject()}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setIsCreateProjectOpen(false)}
-                  className="text-zinc-500 hover:text-white transition-colors"
+                  className="px-4 py-2 hover:bg-zinc-800 rounded text-sm text-zinc-400 hover:text-white transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  Cancel
                 </button>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                    Project Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
-                    placeholder="e.g., My Awesome App"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
-                    autoFocus
-                    onKeyDown={(e) => e.key === "Enter" && createProject()}
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setIsCreateProjectOpen(false)}
-                    className="px-4 py-2 hover:bg-zinc-800 rounded text-sm text-zinc-400 hover:text-white transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={createProject}
-                    disabled={!newProjectName.trim()}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium text-white transition-colors"
-                  >
-                    Create Project
-                  </button>
-                </div>
+                <button
+                  onClick={createProject}
+                  disabled={!newProjectName.trim()}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium text-white transition-colors"
+                >
+                  Create Project
+                </button>
               </div>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* Create Stream Modal */}
-      {
-        isCreateStreamOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-                <h3 className="font-semibold text-lg">Create Stream</h3>
+      {isCreateStreamOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Create Stream</h3>
+              <button
+                onClick={() => setIsCreateStreamOpen(false)}
+                className="text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Stream Name
+                </label>
+                <input
+                  type="text"
+                  value={newStreamName}
+                  onChange={(e) => setNewStreamName(e.target.value)}
+                  placeholder="e.g., Production Logs"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && createStream()}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Type
+                </label>
+                <select
+                  value={newStreamType}
+                  onChange={(e) => setNewStreamType(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                >
+                  <option value="browser">Browser</option>
+                  <option value="docker">Docker</option>
+                  <option value="terminal">Terminal</option>
+                  <option value="opentelemetry">OpenTelemetry</option>
+                  <option value="aws">AWS</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setIsCreateStreamOpen(false)}
-                  className="text-zinc-500 hover:text-white transition-colors"
+                  className="px-4 py-2 hover:bg-zinc-800 rounded text-sm text-zinc-400 hover:text-white transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  Cancel
                 </button>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                    Stream Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newStreamName}
-                    onChange={(e) => setNewStreamName(e.target.value)}
-                    placeholder="e.g., Production Logs"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
-                    autoFocus
-                    onKeyDown={(e) => e.key === "Enter" && createStream()}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                    Type
-                  </label>
-                  <select
-                    value={newStreamType}
-                    onChange={(e) => setNewStreamType(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                  >
-                    <option value="browser">Browser</option>
-                    <option value="docker">Docker</option>
-                    <option value="terminal">Terminal</option>
-                    <option value="opentelemetry">OpenTelemetry</option>
-                  </select>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setIsCreateStreamOpen(false)}
-                    className="px-4 py-2 hover:bg-zinc-800 rounded text-sm text-zinc-400 hover:text-white transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={createStream}
-                    disabled={!newStreamName.trim()}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium text-white transition-colors"
-                  >
-                    Create Stream
-                  </button>
-                </div>
+                <button
+                  onClick={createStream}
+                  disabled={!newStreamName.trim()}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium text-white transition-colors"
+                >
+                  Create Stream
+                </button>
               </div>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* Connection Modal */}
-      {
-        isConnectOpen && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <Plug className="w-5 h-5 text-green-500" />
-                  Connect to Loghead
-                </h3>
-                <button
-                  onClick={() => setIsConnectOpen(false)}
-                  className="text-zinc-500 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+      {isConnectOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Plug className="w-5 h-5 text-green-500" />
+                Connect to Loghead
+              </h3>
+              <button
+                onClick={() => setIsConnectOpen(false)}
+                className="text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Loghead API URL
+                </label>
+                <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 select-all">
+                  {apiBaseUrl || "Loading..."}
+                </div>
               </div>
 
-              <div className="p-6 space-y-6">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                    Loghead API URL
-                  </label>
-                  <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 select-all">
-                    {apiBaseUrl || "Loading..."}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Authentication Token
+                </label>
+                <div className="relative">
+                  <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 break-all pr-12 min-h-[60px]">
+                    {connectionInfo?.token || "Loading..."}
                   </div>
+                  <button
+                    onClick={copyToken}
+                    className="absolute top-2 right-2 p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                    title="Copy Token"
+                  >
+                    {copied ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-zinc-500 mt-2">
+                  Use this token to authenticate your MCP client in the selected
+                  platform.
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-zinc-800">
+                <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
+                  Setup Instructions
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                    Authentication Token
-                  </label>
-                  <div className="relative">
-                    <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 break-all pr-12 min-h-[60px]">
-                      {connectionInfo?.token || "Loading..."}
+                <div className="bg-zinc-950/40 border border-zinc-800 rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 border-b border-zinc-800">
+                    {CONNECT_PLATFORM_TABS.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveConnectPlatform(tab.id)}
+                        className={cn(
+                          "px-3 py-2 text-xs font-medium transition-colors border-b-2",
+                          activeConnectPlatform === tab.id
+                            ? "text-white bg-zinc-900 border-green-500"
+                            : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40 border-transparent",
+                        )}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="p-4 space-y-3">
+                    <div className="text-sm font-semibold text-zinc-100">
+                      {activeGuide.title}
                     </div>
-                    <button
-                      onClick={copyToken}
-                      className="absolute top-2 right-2 p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
-                      title="Copy Token"
-                    >
-                      {copied ? (
-                        <Check className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="text-xs text-zinc-500 mt-2">
-                    Use this token to authenticate your MCP client in the selected platform.
-                  </p>
-                </div>
-
-                <div className="pt-2 border-t border-zinc-800">
-                  <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
-                    Setup Instructions
-                  </div>
-
-                  <div className="bg-zinc-950/40 border border-zinc-800 rounded-lg overflow-hidden">
-                    <div className="grid grid-cols-2 sm:grid-cols-5 border-b border-zinc-800">
-                      {CONNECT_PLATFORM_TABS.map((tab) => (
-                        <button
-                          key={tab.id}
-                          onClick={() => setActiveConnectPlatform(tab.id)}
-                          className={cn(
-                            "px-3 py-2 text-xs font-medium transition-colors border-b-2",
-                            activeConnectPlatform === tab.id
-                              ? "text-white bg-zinc-900 border-green-500"
-                              : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40 border-transparent"
-                          )}
-                        >
-                          {tab.label}
-                        </button>
+                    <ol className="list-decimal list-inside space-y-1 text-xs text-zinc-400">
+                      {activeGuide.steps.map((step, index) => (
+                        <li key={`${activeConnectPlatform}-${index}`}>
+                          {step}
+                        </li>
                       ))}
-                    </div>
+                    </ol>
 
-                    <div className="p-4 space-y-3">
-                      <div className="text-sm font-semibold text-zinc-100">{activeGuide.title}</div>
-                      <ol className="list-decimal list-inside space-y-1 text-xs text-zinc-400">
-                        {activeGuide.steps.map((step, index) => (
-                          <li key={`${activeConnectPlatform}-${index}`}>{step}</li>
-                        ))}
-                      </ol>
-
-                      {activeGuide.snippet && (
-                        <div>
-                          <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                            {activeGuide.snippetLabel}
-                          </div>
-                          <pre className="bg-zinc-950 border border-zinc-800 rounded p-3 text-xs font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
-                            {activeGuide.snippet}
-                          </pre>
+                    {activeGuide.snippet && (
+                      <div>
+                        <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                          {activeGuide.snippetLabel}
                         </div>
-                      )}
-                    </div>
+                        <pre className="bg-zinc-950 border border-zinc-800 rounded p-3 text-xs font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
+                          {activeGuide.snippet}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              <div className="p-4 bg-zinc-950/50 border-t border-zinc-800 flex justify-end">
-                <button
-                  onClick={() => setIsConnectOpen(false)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-sm font-medium transition-colors"
-                >
-                  Done
-                </button>
               </div>
             </div>
+
+            <div className="p-4 bg-zinc-950/50 border-t border-zinc-800 flex justify-end">
+              <button
+                onClick={() => setIsConnectOpen(false)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-sm font-medium transition-colors"
+              >
+                Done
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }

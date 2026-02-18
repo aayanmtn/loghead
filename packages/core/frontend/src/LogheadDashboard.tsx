@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  Component,
+  ErrorInfo,
+  ReactNode,
+} from "react";
 import {
   Activity,
   ChevronDown,
@@ -65,12 +72,15 @@ function highlightText(text: string, query: string) {
     <span>
       {parts.map((part, i) =>
         part.toLowerCase() === query.toLowerCase() ? (
-          <span key={i} className="bg-yellow-500/20 text-yellow-200 rounded px-0.5">
+          <span
+            key={i}
+            className="bg-yellow-500/20 text-yellow-200 rounded px-0.5"
+          >
             {part}
           </span>
         ) : (
           part
-        )
+        ),
       )}
     </span>
   );
@@ -112,7 +122,8 @@ type ConnectPlatform =
   | "windsurf"
   | "cursor"
   | "claudeDesktop"
-  | "vscode";
+  | "vscode"
+  | "aws";
 
 const CONNECT_PLATFORM_TABS: { id: ConnectPlatform; label: string }[] = [
   { id: "claudeCode", label: "Claude Code" },
@@ -120,6 +131,7 @@ const CONNECT_PLATFORM_TABS: { id: ConnectPlatform; label: string }[] = [
   { id: "cursor", label: "Cursor" },
   { id: "claudeDesktop", label: "Claude Desktop" },
   { id: "vscode", label: "VS Code" },
+  { id: "aws", label: "AWS" },
 ];
 
 function normalizeApiBaseUrl(url: string): string {
@@ -148,7 +160,11 @@ function sharedMcpJson(apiUrl: string, token: string): string {
 }`;
 }
 
-function getConnectGuide(platform: ConnectPlatform, apiUrl: string, token: string) {
+function getConnectGuide(
+  platform: ConnectPlatform,
+  apiUrl: string,
+  token: string,
+) {
   switch (platform) {
     case "claudeCode":
       return {
@@ -227,10 +243,62 @@ function getConnectGuide(platform: ConnectPlatform, apiUrl: string, token: strin
   }
 }`,
       };
+    case "aws":
+      return {
+        title: "AWS CloudWatch Logs setup",
+        steps: [
+          "Create a new Node.js Lambda function.",
+          `Set environment variables: LOGHEAD_API_URL=${apiUrl} and LOGHEAD_STREAM_TOKEN=<stream token>.`,
+          "Add a Subscription Filter to your CloudWatch Log Group targeting this Lambda.",
+        ],
+        snippetLabel: "Lambda Function (Node.js)",
+        snippet: `const zlib = require('zlib');
+const https = require('https');
+
+exports.handler = async (event) => {
+    const payload = Buffer.from(event.awslogs.data, 'base64');
+    const decompressed = zlib.gunzipSync(payload);
+    const data = JSON.parse(decompressed.toString());
+    
+    const logs = data.logEvents.map(e => ({
+        content: e.message,
+        metadata: { 
+            logGroup: data.logGroup, 
+            logStream: data.logStream,
+            aws_timestamp: e.timestamp 
+        }
+    }));
+
+    const url = new URL(process.env.LOGHEAD_API_URL + '/api/ingest');
+    const body = JSON.stringify({
+        streamId: process.env.LOGHEAD_STREAM_ID,
+        logs: logs
+    });
+
+    return new Promise((resolve, reject) => {
+        const req = https.request(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + process.env.LOGHEAD_STREAM_TOKEN,
+                'Content-Length': Buffer.byteLength(body)
+            }
+        }, (res) => {
+            res.on('data', () => {});
+            res.on('end', () => resolve());
+        });
+        req.on('error', reject);
+        req.write(body);
+        req.end();
+    });
+};`,
+      };
     default:
       return {
         title: "Setup",
-        steps: ["Use the URL and token above in your MCP client configuration."],
+        steps: [
+          "Use the URL and token above in your MCP client configuration.",
+        ],
         snippetLabel: "",
         snippet: "",
       };
@@ -257,7 +325,9 @@ export function LogheadDashboard() {
 
   // Connection state
   const [isConnectOpen, setIsConnectOpen] = useState(false);
-  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
+  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(
+    null,
+  );
   const [activeConnectPlatform, setActiveConnectPlatform] =
     useState<ConnectPlatform>("claudeCode");
   const [copied, setCopied] = useState(false);
@@ -442,7 +512,10 @@ export function LogheadDashboard() {
         setConnectionInfo(data);
       } else {
         // Fallback or error
-        setConnectionInfo({ token: "Unavailable", mcpUrl: window.location.origin });
+        setConnectionInfo({
+          token: "Unavailable",
+          mcpUrl: window.location.origin,
+        });
       }
     } catch (err) {
       console.error("Failed to fetch connection info", err);
@@ -558,12 +631,12 @@ export function LogheadDashboard() {
   const currentStream = streams.find((s) => s.id === selectedStream);
   const apiBaseUrl = normalizeApiBaseUrl(
     connectionInfo?.mcpUrl ||
-    (typeof window !== "undefined" ? window.location.origin : "")
+      (typeof window !== "undefined" ? window.location.origin : ""),
   );
   const activeGuide = getConnectGuide(
     activeConnectPlatform,
     apiBaseUrl || "https://your-loghead-domain.com",
-    connectionInfo?.token || "<YOUR_MCP_TOKEN>"
+    connectionInfo?.token || "<YOUR_MCP_TOKEN>",
   );
 
   return (
@@ -583,7 +656,9 @@ export function LogheadDashboard() {
               <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                 <LayoutGrid className="w-4 h-4" />
               </div>
-              <span className="font-medium text-sm">{currentProject?.name || "Select Project"}</span>
+              <span className="font-medium text-sm">
+                {currentProject?.name || "Select Project"}
+              </span>
               <ChevronDown className="w-4 h-4 text-zinc-500" />
             </button>
 
@@ -599,7 +674,9 @@ export function LogheadDashboard() {
                       onClick={() => setSelectedProject(p.id)}
                       className={cn(
                         "w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-zinc-800 transition-colors text-sm",
-                        selectedProject === p.id ? "text-emerald-400" : "text-zinc-300"
+                        selectedProject === p.id
+                          ? "text-emerald-400"
+                          : "text-zinc-300",
                       )}
                     >
                       <div className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">
@@ -646,7 +723,9 @@ export function LogheadDashboard() {
                   <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                     <Activity className="w-4 h-4" />
                   </div>
-                  <span className="font-medium text-sm">{currentStream?.name || "Select Stream"}</span>
+                  <span className="font-medium text-sm">
+                    {currentStream?.name || "Select Stream"}
+                  </span>
                   <ChevronDown className="w-4 h-4 text-zinc-500" />
                 </button>
 
@@ -665,7 +744,9 @@ export function LogheadDashboard() {
                           }}
                           className={cn(
                             "w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-zinc-800 transition-colors text-sm",
-                            selectedStream === s.id ? "text-emerald-400" : "text-zinc-300"
+                            selectedStream === s.id
+                              ? "text-emerald-400"
+                              : "text-zinc-300",
                           )}
                         >
                           <div className="w-4 h-4 rounded border border-current flex items-center justify-center text-[10px]">
@@ -717,7 +798,6 @@ export function LogheadDashboard() {
       <div className="flex-1 p-6 overflow-hidden flex flex-col">
         {selectedProject ? (
           <div className="h-full flex flex-col space-y-6">
-
             {currentStream ? (
               <div className="flex-1 flex flex-col space-y-4 min-h-0">
                 {/* Stream Info Bar */}
@@ -838,7 +918,9 @@ export function LogheadDashboard() {
                       onClick={() => setIsAutoScroll(!isAutoScroll)}
                       className={cn(
                         "text-xs px-2 py-1 rounded transition-colors",
-                        isAutoScroll ? "bg-emerald-600/20 text-emerald-400" : "bg-zinc-800 text-zinc-400"
+                        isAutoScroll
+                          ? "bg-emerald-600/20 text-emerald-400"
+                          : "bg-zinc-800 text-zinc-400",
                       )}
                     >
                       {isAutoScroll ? "Auto-scroll On" : "Auto-scroll Off"}
@@ -869,7 +951,9 @@ export function LogheadDashboard() {
                             ))}
                           </div>
                         ) : (
-                          <div className="text-zinc-500">No matching logs found.</div>
+                          <div className="text-zinc-500">
+                            No matching logs found.
+                          </div>
                         )
                       ) : logs ? (
                         <pre className="whitespace-pre-wrap text-zinc-300 break-all font-mono leading-relaxed text-xs">
@@ -925,9 +1009,12 @@ export function LogheadDashboard() {
               <LayoutGrid className="w-8 h-8 text-zinc-500" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white mb-2">No Project Selected</h3>
+              <h3 className="text-xl font-bold text-white mb-2">
+                No Project Selected
+              </h3>
               <p className="text-zinc-400 max-w-sm">
-                Select a project from the top menu or create a new one to get started with Loghead.
+                Select a project from the top menu or create a new one to get
+                started with Loghead.
               </p>
             </div>
             <button
@@ -1029,6 +1116,7 @@ export function LogheadDashboard() {
                   <option value="docker">Docker</option>
                   <option value="terminal">Terminal</option>
                   <option value="opentelemetry">OpenTelemetry</option>
+                  <option value="aws">AWS</option>
                 </select>
               </div>
               <div className="flex justify-end gap-2">
@@ -1068,7 +1156,7 @@ export function LogheadDashboard() {
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
               <div>
                 <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                   Loghead API URL
@@ -1099,7 +1187,8 @@ export function LogheadDashboard() {
                   </button>
                 </div>
                 <p className="text-xs text-zinc-500 mt-2">
-                  Use this token to authenticate your MCP client in the selected platform.
+                  Use this token to authenticate your MCP client in the selected
+                  platform.
                 </p>
               </div>
 
@@ -1118,7 +1207,7 @@ export function LogheadDashboard() {
                           "px-3 py-2 text-xs font-medium transition-colors border-b-2",
                           activeConnectPlatform === tab.id
                             ? "text-white bg-zinc-900 border-green-500"
-                            : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40 border-transparent"
+                            : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40 border-transparent",
                         )}
                       >
                         {tab.label}
@@ -1127,10 +1216,14 @@ export function LogheadDashboard() {
                   </div>
 
                   <div className="p-4 space-y-3">
-                    <div className="text-sm font-semibold text-zinc-100">{activeGuide.title}</div>
+                    <div className="text-sm font-semibold text-zinc-100">
+                      {activeGuide.title}
+                    </div>
                     <ol className="list-decimal list-inside space-y-1 text-xs text-zinc-400">
                       {activeGuide.steps.map((step, index) => (
-                        <li key={`${activeConnectPlatform}-${index}`}>{step}</li>
+                        <li key={`${activeConnectPlatform}-${index}`}>
+                          {step}
+                        </li>
                       ))}
                     </ol>
 
