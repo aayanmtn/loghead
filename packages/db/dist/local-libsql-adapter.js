@@ -16,7 +16,7 @@ export class LocalLibSqlAdapter {
         const info = stmt.run(params);
         return {
             lastInsertRowid: info.lastInsertRowid,
-            changes: info.changes
+            changes: info.changes,
         };
     }
     async exec(sql) {
