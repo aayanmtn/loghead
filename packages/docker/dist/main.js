@@ -25,7 +25,9 @@ async function main() {
         console.error("Error: Missing --container argument.");
         process.exit(1);
     }
-    const apiUrl = argv.api.replace(/\/$/, "");
+    const apiUrl = argv.api
+        .replace(/\/$/, "")
+        .replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
     console.error(`[Loghead Docker] Attaching to ${container} and forwarding to ${apiUrl}...`);
     const child = (0, child_process_1.spawn)("docker", ["logs", "-f", container]);
     const processStream = async (stream, source) => {

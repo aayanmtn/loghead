@@ -25,7 +25,9 @@ async function main() {
         process.exit(1);
     }
 
-    const apiUrl = (argv.api as string).replace(/\/$/, "");
+    const apiUrl = (argv.api as string)
+        .replace(/\/$/, "")
+        .replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
     console.error(`[Loghead Docker] Attaching to ${container} and forwarding to ${apiUrl}...`);
 
     const child = spawn("docker", ["logs", "-f", container]);

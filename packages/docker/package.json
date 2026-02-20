@@ -1,6 +1,6 @@
 {
   "name": "@loghead/docker",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Docker log ingestor for Loghead",
   "repository": {
     "type": "git",

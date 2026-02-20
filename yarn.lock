@@ -616,14 +616,14 @@
     ollama "^0.5.9"
 
 "@loghead/docker@file:/Users/ronnel/Desktop/Loghead/Core/packages/docker":
-  version "0.1.4"
+  version "0.1.6"
   resolved "file:packages/docker"
   dependencies:
     dotenv "^16.4.1"
     yargs "^17.7.2"
 
 "@loghead/mcp@file:/Users/ronnel/Desktop/Loghead/Core/packages/mcp":
-  version "0.1.14"
+  version "0.1.15"
   resolved "file:packages/mcp"
   dependencies:
     "@modelcontextprotocol/sdk" "^1.0.1"
@@ -631,7 +631,7 @@
     zod "^4.1.13"
 
 "@loghead/terminal@file:/Users/ronnel/Desktop/Loghead/Core/packages/terminal":
-  version "0.1.4"
+  version "0.1.10"
   resolved "file:packages/terminal"
   dependencies:
     axios "^1.6.7"
@@ -639,7 +639,7 @@
     yargs "^17.7.2"
 
 "@loghead/ui@file:/Users/ronnel/Desktop/Loghead/Core/packages/ui":
-  version "0.1.12"
+  version "0.1.13"
   resolved "file:packages/ui"
   dependencies:
     lucide-react "^0.555.0"

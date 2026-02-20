@@ -10,6 +10,6 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev:log": "PORT=3002 npm start | npx @loghead/terminal --token eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjODU2ZTZhMy02NDcwLTRhZjgtYjI3YS1jYTRiZmIzZmRjODMiLCJpc3MiOiJsb2doZWFkIiwiaWF0IjoxNzcxMzY0ODA0fQ.fXjS1rYQss-QmDLqtxQUMFaKvYkS0Xxm2o8qKWkZLoPI6amHT--kmV3bS01-kijFBIQTzIZfSUGVr5aok6cjkA"
+    "dev:log": "PORT=3002 npm start | npx @loghead/terminal --base-url=http://localhost:3000 --token eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMmI2NjFlNC1mMDEzLTQ0M2MtYmVjNi1hMjg1MjYxY2EzMjUiLCJpc3MiOiJsb2doZWFkIiwidGVuYW50SWQiOiJRUHgxR2hIc3Bvck5qYnB2Y0NzY2I0T0FvZ1MwbW5iaSIsImlhdCI6MTc3MTU0NDM0MH0.FV1mAp3HOE2JECf51SR2pB1bNIK2ALbJaz3CWfG9sfTxhC1GkKhUxRkFdroq7x-KwTo7dsWmVTz9iBvgBQzPHw"
   }
 }
