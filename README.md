@@ -99,10 +99,10 @@ To use Loghead as an MCP server in VS Code, add the following configuration to y
       "args": ["-y", "@loghead/mcp"],
       "env": {
         "LOGHEAD_API_URL": "http://localhost:4567",
-        "LOGHEAD_TOKEN": "<YOUR_MCP_TOKEN>"
-      }
-    }
-  }
+        "LOGHEAD_TOKEN": "<YOUR_MCP_TOKEN>",
+      },
+    },
+  },
 }
 ```
 
@@ -152,6 +152,12 @@ dev:log": "<command-to-start-your-project> | npx @loghead/terminal --token <STRE
 
 ```bash
 # Pipe any command into loghead-terminal
+npm run build | npx @loghead/terminal --token <STREAM_TOKEN>
+
+# Use custom base URL
+npm run build | npx @loghead/terminal --token <STREAM_TOKEN> --base-url https://your-loghead-instance.com
+
+# Default URL is https://loghead.dev
 npm run build | npx @loghead/terminal --token <STREAM_TOKEN>
 ```
 
@@ -355,7 +361,6 @@ The `@loghead/core` server exposes a REST API on port `4567` (by default).
 ### Logs
 
 - **Get Logs**
-
   - `GET /api/logs`
   - Query Params:
     - `streamId`: (Required) The Stream ID.
@@ -364,7 +369,6 @@ The `@loghead/core` server exposes a REST API on port `4567` (by default).
     - `pageSize`: (Optional) Logs per page (default 100, max 1000).
 
 - **Ingest Logs**
-
   - `POST /api/ingest`
   - Headers: `Authorization: Bearer <STREAM_TOKEN>`
   - Body:
@@ -391,6 +395,7 @@ The `@loghead/core` server exposes a REST API on port `4567` (by default).
 We welcome contributions to Loghead! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
 
 For detailed contribution guidelines, please see [CONTRIBUTING.md](./CONTRIBUTING.md). This includes information on:
+
 - How to report bugs and suggest features
 - Setting up your development environment
 - Code style and commit message conventions

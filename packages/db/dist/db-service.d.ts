@@ -29,5 +29,5 @@ export declare class DbService {
     private generateFingerprint;
     getIssues(projectId: string, status?: string, limit?: number): Promise<any[]>;
     getIssue(id: string): Promise<any>;
-    updateIssueStatus(id: string, status: 'open' | 'resolved'): Promise<void>;
+    updateIssueStatus(id: string, status: "open" | "resolved"): Promise<void>;
 }

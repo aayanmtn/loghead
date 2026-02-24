@@ -872,9 +872,66 @@ export function LogheadDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
         {selectedProject ? (
-          <div className="h-full flex flex-col space-y-6">
+          <div className="h-full flex flex-col space-y-3">
+            {/* Stream Identity + Token */}
+            {currentStream && (
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 shrink-0">
+                <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,auto)_1fr] gap-x-6 gap-y-2 items-center">
+                  <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                    Stream ID
+                  </div>
+                  <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                    Stream Token
+                  </div>
+
+                  <div
+                    className="text-sm font-mono text-zinc-300 truncate"
+                    title={currentStream.id}
+                  >
+                    {currentStream.id}
+                  </div>
+
+                  <div className="min-w-0">
+                    {streamTokenLoading && (
+                      <div className="text-sm text-zinc-500 animate-pulse">
+                        Loading stream token...
+                      </div>
+                    )}
+
+                    {streamTokenError && (
+                      <div className="text-sm text-red-500">
+                        Error loading token: {streamTokenError}
+                      </div>
+                    )}
+
+                    {streamToken && (
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className="flex-1 min-w-0 text-sm font-mono text-zinc-300 truncate"
+                          title={streamToken}
+                        >
+                          {streamToken}
+                        </div>
+                        <button
+                          onClick={copyStreamToken}
+                          className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                          title="Copy Stream Token"
+                        >
+                          {streamTokenCopied ? (
+                            <Check className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-6 border-b border-zinc-800 px-2">
               <button
                 onClick={() => setViewMode("logs")}
@@ -903,60 +960,6 @@ export function LogheadDashboard() {
             {viewMode === "logs" ? (
               currentStream ? (
                 <div className="flex-1 flex flex-col space-y-4 min-h-0">
-                  {/* Stream Identity + Token */}
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 shrink-0">
-                    <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,auto)_1fr] gap-x-6 gap-y-2 items-center">
-                      <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                        Stream ID
-                      </div>
-                      <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                        Stream Token
-                      </div>
-
-                      <div
-                        className="text-sm font-mono text-zinc-300 truncate"
-                        title={currentStream.id}
-                      >
-                        {currentStream.id}
-                      </div>
-
-                      <div className="min-w-0">
-                        {streamTokenLoading && (
-                          <div className="text-sm text-zinc-500 animate-pulse">
-                            Loading stream token...
-                          </div>
-                        )}
-
-                        {streamTokenError && (
-                          <div className="text-sm text-red-500">
-                            Error loading token: {streamTokenError}
-                          </div>
-                        )}
-
-                        {streamToken && (
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div
-                              className="flex-1 min-w-0 text-sm font-mono text-zinc-300 truncate"
-                              title={streamToken}
-                            >
-                              {streamToken}
-                            </div>
-                            <button
-                              onClick={copyStreamToken}
-                              className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
-                              title="Copy Stream Token"
-                            >
-                              {streamTokenCopied ? (
-                                <Check className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Copy className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
 
                   <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col min-h-0">
                     <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-950">
@@ -1104,10 +1107,11 @@ export function LogheadDashboard() {
                 </div>
               )
             ) : (
-              <div className="flex-1 min-h-0 flex flex-col mt-4">
+              <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col min-h-0">
                 {/* Issues Header */}
-                <div className="flex items-center justify-between mb-4 px-2">
-                  <h2 className="text-lg font-bold flex items-center gap-2">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-950">
+                  <h2 className="text-sm font-semibold flex items-center gap-2 text-zinc-300">
                     <span className="text-emerald-400">●</span>
                     Issues ({
                       issues.filter((i) => i.status === "open").length
@@ -1152,7 +1156,7 @@ export function LogheadDashboard() {
                 </div>
 
                 {/* Issues List */}
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                <div className="flex-1 overflow-y-auto space-y-2 p-4">
                   {issues.length === 0 ? (
                     <div className="text-center py-12 text-zinc-500 italic">
                       No issues found.
@@ -1265,6 +1269,7 @@ export function LogheadDashboard() {
                     ))
                   )}
                 </div>
+                </div>{/* end card */}
               </div>
             )}
           </div>
@@ -1407,7 +1412,7 @@ export function LogheadDashboard() {
       {/* Connection Modal */}
       {isConnectOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-4xl w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <Plug className="w-5 h-5 text-green-500" />
@@ -1421,49 +1426,53 @@ export function LogheadDashboard() {
               </button>
             </div>
 
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                  Loghead API URL
-                </label>
-                <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 select-all">
-                  {apiBaseUrl || "Loading..."}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                  Authentication Token
-                </label>
-                <div className="relative">
-                  <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 break-all pr-12 min-h-[60px]">
-                    {connectionInfo?.token || "Loading..."}
+            <div className="flex divide-x divide-zinc-800 max-h-[70vh]">
+              {/* Left: Credentials */}
+              <div className="p-6 space-y-6 w-80 shrink-0 overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                    Loghead API URL
+                  </label>
+                  <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 select-all break-all">
+                    {apiBaseUrl || "Loading..."}
                   </div>
-                  <button
-                    onClick={copyToken}
-                    className="absolute top-2 right-2 p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
-                    title="Copy Token"
-                  >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </button>
                 </div>
-                <p className="text-xs text-zinc-500 mt-2">
-                  Use this token to authenticate your MCP client in the selected
-                  platform.
-                </p>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                    Authentication Token
+                  </label>
+                  <div className="relative">
+                    <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 break-all pr-12 min-h-[60px]">
+                      {connectionInfo?.token || "Loading..."}
+                    </div>
+                    <button
+                      onClick={copyToken}
+                      className="absolute top-2 right-2 p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                      title="Copy Token"
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-2">
+                    Use this token to authenticate your MCP client in the selected
+                    platform.
+                  </p>
+                </div>
               </div>
 
-              <div className="pt-2 border-t border-zinc-800">
+              {/* Right: Setup Instructions */}
+              <div className="p-6 flex-1 overflow-y-auto">
                 <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
                   Setup Instructions
                 </div>
 
                 <div className="bg-zinc-950/40 border border-zinc-800 rounded-lg overflow-hidden">
-                  <div className="grid grid-cols-2 sm:grid-cols-5 border-b border-zinc-800">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 border-b border-zinc-800">
                     {CONNECT_PLATFORM_TABS.map((tab) => (
                       <button
                         key={tab.id}

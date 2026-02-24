@@ -11,7 +11,10 @@ export class DbService {
     }
     async createProject(name) {
         const id = randomUUID();
-        await this.db.run("INSERT INTO projects (id, name) VALUES (?, ?)", [id, name]);
+        await this.db.run("INSERT INTO projects (id, name) VALUES (?, ?)", [
+            id,
+            name,
+        ]);
         const project = await this.getProject(id);
         if (!project)
             throw new Error("Failed to create project");
@@ -41,9 +44,7 @@ export class DbService {
     }
     async createStream(projectId, type, name, config = {}) {
         const id = randomUUID();
-        await this.db.run("INSERT INTO data_streams (id, project_id, type, name, config) VALUES (?, ?, ?, ?, ?)", [
-            id, projectId, type, name, JSON.stringify(config)
-        ]);
+        await this.db.run("INSERT INTO data_streams (id, project_id, type, name, config) VALUES (?, ?, ?, ?, ?)", [id, projectId, type, name, JSON.stringify(config)]);
         const token = await this.auth.createStreamToken(id);
         const stream = await this.getStream(id);
         if (!stream)
@@ -56,7 +57,9 @@ export class DbService {
             try {
                 stream.config = JSON.parse(stream.config);
             }
-            catch { /* ignore */ }
+            catch {
+                /* ignore */
+            }
         }
         return stream;
     }
@@ -71,7 +74,9 @@ export class DbService {
                 try {
                     s.config = JSON.parse(s.config);
                 }
-                catch { /* ignore */ }
+                catch {
+                    /* ignore */
+                }
             return s;
         });
     }
@@ -111,9 +116,7 @@ export class DbService {
         const projectId = stream?.project_id;
         await this.db.transaction(async () => {
             // 1. Insert into logs
-            const result = await this.db.run("INSERT INTO logs (id, stream_id, content, metadata) VALUES (?, ?, ?, ?)", [
-                id, streamId, content, metadataStr
-            ]);
+            const result = await this.db.run("INSERT INTO logs (id, stream_id, content, metadata) VALUES (?, ?, ?, ?)", [id, streamId, content, metadataStr]);
             let rowid = result.lastInsertRowid;
             if (rowid === undefined) {
                 const inserted = await this.db.get("SELECT rowid FROM logs WHERE id = ?", [id]);
@@ -163,7 +166,11 @@ export class DbService {
         console.log(`[Core][DB][searchLogs] Generated embedding dims=${embedding.length}`);
         const vectorJson = JSON.stringify(embedding);
         try {
-            const distanceFns = ["vector_distance_cos", "vector_distance_l2", "vector_distance"];
+            const distanceFns = [
+                "vector_distance_cos",
+                "vector_distance_l2",
+                "vector_distance",
+            ];
             let lastVectorError;
             for (const distanceFn of distanceFns) {
                 try {
@@ -187,14 +194,17 @@ export class DbService {
                         try {
                             meta = JSON.parse(row.metadata);
                         }
-                        catch { /* ignore */ }
+                        catch {
+                            /* ignore */
+                        }
                         const similarity = Math.max(0, 1 - row.distance);
-                        const lexicalMatch = normalizedQuery.length > 0 && row.content.toLowerCase().includes(normalizedQuery);
+                        const lexicalMatch = normalizedQuery.length > 0 &&
+                            row.content.toLowerCase().includes(normalizedQuery);
                         return {
                             content: row.content,
                             timestamp: row.timestamp,
                             similarity,
-                            metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined,
+                            metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
                             lexicalMatch,
                         };
                     });
@@ -210,7 +220,8 @@ export class DbService {
                     console.warn(`[Core][DB][searchLogs] ${distanceFn} search path failed; trying next path`, fnError);
                 }
             }
-            throw lastVectorError ?? new Error("No vector distance function path succeeded");
+            throw (lastVectorError ??
+                new Error("No vector distance function path succeeded"));
         }
         catch (e) {
             console.error("[Core][DB][searchLogs] Vector search failed on all paths; falling back to keyword LIKE search:", e);
@@ -233,12 +244,14 @@ export class DbService {
                 try {
                     meta = JSON.parse(row.metadata);
                 }
-                catch { /* ignore */ }
+                catch {
+                    /* ignore */
+                }
                 return {
                     content: row.content,
                     timestamp: row.timestamp,
                     similarity: 0.5,
-                    metadata: (meta && Object.keys(meta).length > 0) ? meta : undefined
+                    metadata: meta && Object.keys(meta).length > 0 ? meta : undefined,
                 };
             });
         }
@@ -256,14 +269,18 @@ export class DbService {
                 try {
                     meta = JSON.parse(meta);
                 }
-                catch { /* ignore */ }
+                catch {
+                    /* ignore */
+                }
             }
             return {
                 id: row.id,
                 stream_id: streamId,
                 content: row.content,
                 timestamp: row.timestamp,
-                metadata: (typeof meta === "object" && meta && Object.keys(meta).length > 0) ? meta : {}
+                metadata: typeof meta === "object" && meta && Object.keys(meta).length > 0
+                    ? meta
+                    : {},
             };
         });
     }
@@ -294,22 +311,25 @@ export class DbService {
         else {
             // Step E: Create Issue
             issueId = randomUUID();
-            const title = content.split('\n')[0].substring(0, 120);
+            const title = content.split("\n")[0].substring(0, 120);
             await this.db.run(`INSERT INTO issues (id, project_id, fingerprint, title, status, first_seen, last_seen, occurrence_count, created_at)
          VALUES (?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP)`, [issueId, projectId, fingerprint, title]);
         }
         // Link log to issue
-        await this.db.run("UPDATE logs SET issue_id = ? WHERE rowid = ?", [issueId, logRowId]);
+        await this.db.run("UPDATE logs SET issue_id = ? WHERE rowid = ?", [
+            issueId,
+            logRowId,
+        ]);
     }
     generateFingerprint(content) {
-        const firstLine = content.split('\n')[0];
+        const firstLine = content.split("\n")[0];
         const normalized = firstLine
             .toLowerCase()
-            .replace(/\d+/g, '') // Remove numbers
-            .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '') // Remove UUIDs
-            .replace(/0x[0-9a-f]+/g, '') // Remove hex
+            .replace(/\d+/g, "") // Remove numbers
+            .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, "") // Remove UUIDs
+            .replace(/0x[0-9a-f]+/g, "") // Remove hex
             .trim();
-        return createHash('sha256').update(normalized).digest('hex');
+        return createHash("sha256").update(normalized).digest("hex");
     }
     async getIssues(projectId, status, limit = 50) {
         let sql = "SELECT * FROM issues WHERE project_id = ?";
@@ -330,6 +350,9 @@ export class DbService {
         return { issue, logs };
     }
     async updateIssueStatus(id, status) {
-        await this.db.run("UPDATE issues SET status = ? WHERE id = ?", [status, id]);
+        await this.db.run("UPDATE issues SET status = ? WHERE id = ?", [
+            status,
+            id,
+        ]);
     }
 }

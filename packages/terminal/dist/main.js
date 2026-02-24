@@ -10,7 +10,8 @@ const readline_1 = __importDefault(require("readline"));
 async function main() {
     const argv = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
         .option("token", { type: "string", description: "Stream token" })
-        .option("api", { type: "string", default: "http://localhost:4567", description: "API URL" })
+        .option("api", { type: "string", default: "https://loghead.dev", description: "API URL" })
+        .option("base-url", { type: "string", description: "Base URL for Loghead API (alternative to --api)" })
         .help()
         .parse();
     const token = argv.token || process.env.LOGHEAD_TOKEN;
@@ -18,7 +19,9 @@ async function main() {
         console.error("Error: Missing token. Provide --token or set LOGHEAD_TOKEN env var.");
         process.exit(1);
     }
-    const apiUrl = argv.api.replace(/\/$/, "");
+    const apiUrl = (argv["base-url"] || argv.api)
+        .replace(/\/$/, "")
+        .replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
     console.error(`[Loghead Terminal] Forwarding stdin to ${apiUrl}...`);
     const rl = readline_1.default.createInterface({
         input: process.stdin,

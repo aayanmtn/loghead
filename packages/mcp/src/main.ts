@@ -16,6 +16,10 @@ function normalizeBaseUrl(url: string) {
     if (normalized.endsWith("/api")) normalized = normalized.slice(0, -4);
     if (normalized.endsWith("/sse")) normalized = normalized.slice(0, -4);
 
+    // Node.js fetch resolves localhost via dual IPv4/IPv6 which can cause ECONNREFUSED.
+    // Normalize to 127.0.0.1 for reliable local connections.
+    normalized = normalized.replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
+
     return normalized;
 }
 

@@ -81,13 +81,15 @@ export async function migrate(db, verbose = true) {
         hasVecTable = vecTableInfo.length > 0;
         const embeddingColumn = vecTableInfo.find((col) => col.name === "embedding");
         hasNativeVectorColumn =
-            !!embeddingColumn && embeddingColumn.type.toUpperCase().includes("F32_BLOB");
+            !!embeddingColumn &&
+                embeddingColumn.type.toUpperCase().includes("F32_BLOB");
     }
     catch (e) {
         // Legacy sqlite-vec virtual table can throw here when vec0 module isn't loaded.
         // Recover by dropping and recreating with native libSQL vector schema.
         const msg = String(e);
-        if (msg.includes("vec0") || msg.includes("Virtual table module not found")) {
+        if (msg.includes("vec0") ||
+            msg.includes("Virtual table module not found")) {
             hasVecTable = false;
             hasNativeVectorColumn = false;
             try {
