@@ -54,6 +54,14 @@
         "title": "Loghead: Open Dashboard"
       },
       {
+        "command": "loghead.connectCloud",
+        "title": "Connect to Loghead Cloud"
+      },
+      {
+        "command": "loghead.disconnectCloud",
+        "title": "Disconnect from Loghead Cloud"
+      },
+      {
         "command": "loghead.createProject",
         "title": "Create Project",
         "icon": "$(add)"
