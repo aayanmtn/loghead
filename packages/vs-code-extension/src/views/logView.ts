@@ -28,7 +28,8 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
     if (!serverState.running) {
       return [new vscode.TreeItem("Loghead server not running")];
     }
-    if (!serverState.port) {
+
+    if (serverState.mode === "local" && !serverState.port) {
       return [new vscode.TreeItem("Waiting for Loghead server...")];
     }
 
@@ -54,11 +55,11 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
         ...this.logs.map((log: any) => {
           const item = new vscode.TreeItem(
             `${log.timestamp}  ${log.content}`,
-            vscode.TreeItemCollapsibleState.None
+            vscode.TreeItemCollapsibleState.None,
           );
           item.iconPath = new vscode.ThemeIcon("output");
           return item;
-        })
+        }),
       );
 
       return items;

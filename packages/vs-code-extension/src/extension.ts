@@ -17,7 +17,81 @@ export function activate(context: vscode.ExtensionContext) {
     const projectsView = new ProjectsView();
     const logsView = new LogsView();
 
+    // >> Restore State
+    const savedMode = context.globalState.get<"local" | "cloud">(
+      "loghead.mode",
+    );
+    if (savedMode === "cloud") {
+      serverState.mode = "cloud";
+      serverState.cloudApiUrl =
+        context.globalState.get<string>("loghead.cloudApiUrl") ||
+        "http://localhost:3000";
+      context.secrets.get("logheadCloudToken").then((token) => {
+        if (token) {
+          serverState.cloudToken = token;
+          serverState.mcpToken = token;
+          serverState.running = true;
+          serverView.refresh();
+          projectsView.refresh();
+          logsView.refresh();
+        } else {
+          // Token missing, revert to local
+          serverState.mode = "local";
+          context.globalState.update("loghead.mode", "local");
+        }
+      });
+    }
+
     context.subscriptions.push(
+      vscode.window.registerUriHandler({
+        handleUri: async (uri: vscode.Uri) => {
+          if (uri.path === "/auth") {
+            const query = new URLSearchParams(uri.query);
+            const token = query.get("token");
+            if (token) {
+              // Stop local core if running, before switching to cloud
+              stopCore(() => {});
+
+              await context.secrets.store("logheadCloudToken", token);
+              serverState.mode = "cloud";
+              serverState.cloudToken = token;
+              serverState.cloudApiUrl = "http://localhost:3000";
+              serverState.mcpToken = token;
+              serverState.running = true;
+
+              await context.globalState.update("loghead.mode", "cloud");
+              await context.globalState.update(
+                "loghead.cloudApiUrl",
+                "http://localhost:3000",
+              );
+
+              // Fetch connection info
+              try {
+                const res = await fetch(
+                  "http://localhost:3000/api/connection",
+                  {
+                    headers: { Authorization: `Bearer ${token}` },
+                  },
+                );
+                if (res.ok) {
+                  // Keep token as is, or update if API returns a different one
+                }
+              } catch (e) {
+                outputChannel.appendLine(
+                  `Failed to fetch connection info: ${e}`,
+                );
+              }
+
+              vscode.window.showInformationMessage(
+                "Connected to Loghead Cloud!",
+              );
+              serverView.refresh();
+              projectsView.refresh();
+              logsView.refresh();
+            }
+          }
+        },
+      }),
       outputChannel,
       vscode.window.createTreeView("loghead.server", {
         treeDataProvider: serverView,
@@ -32,6 +106,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
       vscode.commands.registerCommand("loghead.start", () => {
+        if (serverState.mode === "cloud") {
+          vscode.window.showErrorMessage(
+            "Running in Cloud mode. Disconnect to start local server.",
+          );
+          return;
+        }
         outputChannel.appendLine("Command: loghead.start triggered");
         startCore(context, outputChannel, () => {
           serverView.refresh();
@@ -46,10 +126,47 @@ export function activate(context: vscode.ExtensionContext) {
         //   serverState.mcpToken = undefined;
         //   serverView.refresh();
 
+        if (serverState.mode === "cloud") {
+          vscode.window.showErrorMessage(
+            "Running in Cloud mode. Use Disconnect instead.",
+          );
+          return;
+        }
+
         stopCore(() => {
           serverView.refresh();
           logsView.refresh();
         });
+      }),
+      // >> Command: Open Dashboard
+      vscode.commands.registerCommand("loghead.openDashboard", () => {
+        vscode.env.openExternal(vscode.Uri.parse("http://localhost:3000/app"));
+      }),
+
+      // >> Command: Connect to Cloud
+      vscode.commands.registerCommand("loghead.connectCloud", async () => {
+        const uri = vscode.Uri.parse(
+          `http://localhost:3000/app/extension-auth?callback=${vscode.env.uriScheme}://onvoai.loghead/auth`,
+        );
+        vscode.env.openExternal(uri);
+      }),
+
+      // >> Command: Disconnect Cloud
+      vscode.commands.registerCommand("loghead.disconnectCloud", async () => {
+        await context.secrets.delete("logheadCloudToken");
+        serverState.mode = "local";
+        serverState.cloudToken = undefined;
+        serverState.cloudApiUrl = undefined;
+        serverState.mcpToken = undefined;
+        serverState.running = false;
+
+        await context.globalState.update("loghead.mode", "local");
+        await context.globalState.update("loghead.cloudApiUrl", undefined);
+
+        serverView.refresh();
+        projectsView.refresh();
+        logsView.refresh();
+        vscode.window.showInformationMessage("Disconnected from Loghead Cloud");
       }),
       // >> Command to copy MCP token
       vscode.commands.registerCommand("loghead.copyMcpToken", async () => {
@@ -62,15 +179,22 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand("loghead.copyMcpConfig", async () => {
         if (!serverState.mcpToken) return;
 
+        let env: any = {
+          LOGHEAD_TOKEN: serverState.mcpToken,
+        };
+
+        if (serverState.mode === "cloud") {
+          env.LOGHEAD_API_URL = "http://localhost:3000";
+        } else {
+          env.LOGHEAD_API_URL = `http://localhost:${serverState.port}`;
+        }
+
         const config = {
           servers: {
             loghead: {
               command: "npx",
               args: ["-y", "@loghead/mcp"],
-              env: {
-                LOGHEAD_API_URL: `http://localhost:${serverState.port}`,
-                LOGHEAD_TOKEN: serverState.mcpToken,
-              },
+              env,
             },
           },
         };
@@ -205,7 +329,11 @@ export function activate(context: vscode.ExtensionContext) {
           if (!node?.id) return;
           try {
             const token = await api.getStreamToken(node.id);
-            const command = `"dev:log": "<APP_RUNNING_SCRIPT> | npx @loghead/terminal --token ${token}"`;
+            const apiUrl =
+              serverState.mode === "cloud"
+                ? "LOGHEAD_API_URL=http://localhost:3000 "
+                : "";
+            const command = `"dev:log": "<APP_RUNNING_SCRIPT> | ${apiUrl}npx @loghead/terminal --token ${token}"`;
             await vscode.env.clipboard.writeText(command);
 
             vscode.window.showInformationMessage(
