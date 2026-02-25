@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 
 const baseUrl = () => {
   if (serverState.mode === "cloud") {
-    return serverState.cloudApiUrl || "http://localhost:3000";
+    return serverState.cloudApiUrl || "https://loghead.dev";
   }
   return `http://127.0.0.1:${serverState.port ?? 4567}`;
 };

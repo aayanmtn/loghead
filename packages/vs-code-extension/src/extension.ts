@@ -25,7 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
       serverState.mode = "cloud";
       serverState.cloudApiUrl =
         context.globalState.get<string>("loghead.cloudApiUrl") ||
-        "http://localhost:3000";
+        "https://loghead.dev";
       context.secrets.get("logheadCloudToken").then((token) => {
         if (token) {
           serverState.cloudToken = token;
@@ -55,24 +55,21 @@ export function activate(context: vscode.ExtensionContext) {
               await context.secrets.store("logheadCloudToken", token);
               serverState.mode = "cloud";
               serverState.cloudToken = token;
-              serverState.cloudApiUrl = "http://localhost:3000";
+              serverState.cloudApiUrl = "https://loghead.dev";
               serverState.mcpToken = token;
               serverState.running = true;
 
               await context.globalState.update("loghead.mode", "cloud");
               await context.globalState.update(
                 "loghead.cloudApiUrl",
-                "http://localhost:3000",
+                "https://loghead.dev",
               );
 
               // Fetch connection info
               try {
-                const res = await fetch(
-                  "http://localhost:3000/api/connection",
-                  {
-                    headers: { Authorization: `Bearer ${token}` },
-                  },
-                );
+                const res = await fetch("https://loghead.dev/api/connection", {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
                 if (res.ok) {
                   // Keep token as is, or update if API returns a different one
                 }
@@ -140,13 +137,13 @@ export function activate(context: vscode.ExtensionContext) {
       }),
       // >> Command: Open Dashboard
       vscode.commands.registerCommand("loghead.openDashboard", () => {
-        vscode.env.openExternal(vscode.Uri.parse("http://localhost:3000/app"));
+        vscode.env.openExternal(vscode.Uri.parse("https://loghead.dev/app"));
       }),
 
       // >> Command: Connect to Cloud
       vscode.commands.registerCommand("loghead.connectCloud", async () => {
         const uri = vscode.Uri.parse(
-          `http://localhost:3000/app/extension-auth?callback=${vscode.env.uriScheme}://onvoai.loghead/auth`,
+          `https://loghead.dev/app/extension-auth?callback=${vscode.env.uriScheme}://onvoai.loghead/auth`,
         );
         vscode.env.openExternal(uri);
       }),
@@ -184,7 +181,7 @@ export function activate(context: vscode.ExtensionContext) {
         };
 
         if (serverState.mode === "cloud") {
-          env.LOGHEAD_API_URL = "http://localhost:3000";
+          env.LOGHEAD_API_URL = "https://loghead.dev";
         } else {
           env.LOGHEAD_API_URL = `http://localhost:${serverState.port}`;
         }
@@ -331,7 +328,7 @@ export function activate(context: vscode.ExtensionContext) {
             const token = await api.getStreamToken(node.id);
             const apiUrl =
               serverState.mode === "cloud"
-                ? "LOGHEAD_API_URL=http://localhost:3000 "
+                ? "LOGHEAD_API_URL=https://loghead.dev "
                 : "";
             const command = `"dev:log": "<APP_RUNNING_SCRIPT> | ${apiUrl}npx @loghead/terminal --token ${token}"`;
             await vscode.env.clipboard.writeText(command);
