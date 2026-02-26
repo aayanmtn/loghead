@@ -240,6 +240,18 @@ export async function startApiServer(db: DbService, auth: AuthService) {
     res.json({ success: true });
   });
 
+  app.patch("/api/projects/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).send("Name required");
+    }
+
+    const project = await db.renameProject(id, name.trim());
+    res.json(project);
+  });
+
   app.get("/api/streams", async (req, res) => {
     const projectId = req.query.projectId as string;
     if (projectId) {
@@ -254,6 +266,18 @@ export async function startApiServer(db: DbService, auth: AuthService) {
     const { id } = req.params;
     await db.deleteStream(id);
     res.json({ success: true });
+  });
+
+  app.patch("/api/streams/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).send("Name required");
+    }
+
+    const stream = await db.renameStream(id, name.trim());
+    res.json(stream);
   });
 
   app.get("/api/streams/:id/token", async (req, res) => {

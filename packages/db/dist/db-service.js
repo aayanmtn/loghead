@@ -27,6 +27,10 @@ export class DbService {
         await this.db.run("DELETE FROM projects WHERE id = ?", [id]);
         return true;
     }
+    async renameProject(id, name) {
+        await this.db.run("UPDATE projects SET name = ? WHERE id = ?", [name, id]);
+        return this.getProject(id);
+    }
     async listProjects() {
         try {
             const projects = await this.db.query("SELECT * FROM projects ORDER BY created_at DESC");
@@ -66,6 +70,13 @@ export class DbService {
     async deleteStream(id) {
         await this.db.run("DELETE FROM data_streams WHERE id = ?", [id]);
         return true;
+    }
+    async renameStream(id, name) {
+        await this.db.run("UPDATE data_streams SET name = ? WHERE id = ?", [
+            name,
+            id,
+        ]);
+        return this.getStream(id);
     }
     async listStreams(projectId) {
         const streams = await this.db.query("SELECT * FROM data_streams WHERE project_id = ? ORDER BY created_at DESC", [projectId]);

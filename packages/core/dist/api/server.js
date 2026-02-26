@@ -207,6 +207,15 @@ export async function startApiServer(db, auth) {
         await db.deleteProject(id);
         res.json({ success: true });
     });
+    app.patch("/api/projects/:id", async (req, res) => {
+        const { id } = req.params;
+        const { name } = req.body;
+        if (!name || !name.trim()) {
+            return res.status(400).send("Name required");
+        }
+        const project = await db.renameProject(id, name.trim());
+        res.json(project);
+    });
     app.get("/api/streams", async (req, res) => {
         const projectId = req.query.projectId;
         if (projectId) {
@@ -221,6 +230,15 @@ export async function startApiServer(db, auth) {
         const { id } = req.params;
         await db.deleteStream(id);
         res.json({ success: true });
+    });
+    app.patch("/api/streams/:id", async (req, res) => {
+        const { id } = req.params;
+        const { name } = req.body;
+        if (!name || !name.trim()) {
+            return res.status(400).send("Name required");
+        }
+        const stream = await db.renameStream(id, name.trim());
+        res.json(stream);
     });
     app.get("/api/streams/:id/token", async (req, res) => {
         const { id } = req.params;
@@ -299,6 +317,50 @@ export async function startApiServer(db, auth) {
             logs = await db.getRecentLogs(streamId, limit, offset);
         }
         res.json(logs);
+    });
+    app.get("/api/issues", async (req, res) => {
+        const projectId = req.query.projectId;
+        const status = req.query.status;
+        const limit = parseInt(req.query.limit || "50");
+        if (!projectId) {
+            return res.status(400).send("Missing projectId");
+        }
+        try {
+            const issues = await db.getIssues(projectId, status, limit);
+            res.json(issues);
+        }
+        catch (e) {
+            console.error("Error fetching issues:", e);
+            res.status(500).send(String(e));
+        }
+    });
+    app.get("/api/issues/:id", async (req, res) => {
+        const { id } = req.params;
+        try {
+            const data = await db.getIssue(id);
+            if (!data)
+                return res.status(404).send("Issue not found");
+            res.json(data);
+        }
+        catch (e) {
+            console.error("Error fetching issue details:", e);
+            res.status(500).send(String(e));
+        }
+    });
+    app.patch("/api/issues/:id", async (req, res) => {
+        const { id } = req.params;
+        const { status } = req.body;
+        if (status !== "open" && status !== "resolved") {
+            return res.status(400).send("Invalid status");
+        }
+        try {
+            await db.updateIssueStatus(id, status);
+            res.json({ success: true });
+        }
+        catch (e) {
+            console.error("Error updating issue:", e);
+            res.status(500).send(String(e));
+        }
     });
     // SPA fallback
     app.get("*", (req, res) => {
