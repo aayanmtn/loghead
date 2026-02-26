@@ -20,6 +20,9 @@ import {
   Plus,
   AlertCircle,
   Search,
+  Pencil,
+  Trash,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "./utils";
 
@@ -358,6 +361,21 @@ export function LogheadDashboard() {
   const [expandedIssue, setExpandedIssue] = useState<string | null>(null);
   const [issueDetails, setIssueDetails] = useState<any>(null); // { issue: ..., logs: ... }
 
+  // Rename & Delete State
+  const [isRenameProjectOpen, setIsRenameProjectOpen] = useState(false);
+  const [renameProjectName, setRenameProjectName] = useState("");
+  const [renameProjectId, setRenameProjectId] = useState<string | null>(null);
+
+  const [isRenameStreamOpen, setIsRenameStreamOpen] = useState(false);
+  const [renameStreamName, setRenameStreamName] = useState("");
+  const [renameStreamId, setRenameStreamId] = useState<string | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: "project" | "stream";
+    id: string;
+    name: string;
+  } | null>(null);
+
   // Auto-scroll effect
   useEffect(() => {
     if (isAutoScroll && logContainerRef.current) {
@@ -385,11 +403,8 @@ export function LogheadDashboard() {
       if (!res.ok) throw new Error("Failed to fetch streams");
       const data = await res.json();
       setStreams(data);
-      if (data.length > 0) {
-        setSelectedStream(data[0].id);
-      } else {
-        setSelectedStream(null);
-      }
+      // Removed auto-selection to show grid view by default
+      setSelectedStream(null);
     } catch (err) {
       console.error("Failed to fetch streams", err);
     }
@@ -512,6 +527,84 @@ export function LogheadDashboard() {
       }
     } catch (e) {
       console.error("Failed to resolve issue", e);
+    }
+  };
+
+  const renameProject = async () => {
+    const id = renameProjectId || selectedProject;
+    if (!id || !renameProjectName.trim()) return;
+
+    try {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameProjectName }),
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      await fetchProjects();
+      setIsRenameProjectOpen(false);
+      setRenameProjectId(null);
+    } catch (err) {
+      console.error("Failed to rename project", err);
+      alert("Failed to rename project: " + err);
+    }
+  };
+
+  const renameStream = async () => {
+    const id = renameStreamId || selectedStream;
+    if (!id || !renameStreamName.trim()) return;
+
+    try {
+      const res = await fetch(`/api/streams/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renameStreamName }),
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      if (selectedProject) await fetchStreams(selectedProject);
+      setIsRenameStreamOpen(false);
+      setRenameStreamId(null);
+    } catch (err) {
+      console.error("Failed to rename stream", err);
+      alert("Failed to rename stream: " + err);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      await fetch(`/api/${deleteTarget.type}s/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+
+      if (deleteTarget.type === "project") {
+        await fetchProjects();
+        if (selectedProject === deleteTarget.id) {
+          setSelectedProject(null);
+          setStreams([]);
+          setLogs("");
+          setSelectedStream(null);
+        }
+      } else {
+        if (selectedProject) await fetchStreams(selectedProject);
+        if (selectedStream === deleteTarget.id) {
+          setSelectedStream(null);
+          setLogs("");
+        }
+      }
+
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error("Failed to delete", err);
     }
   };
 
@@ -649,6 +742,17 @@ export function LogheadDashboard() {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
+
+      if (e.key === "Escape") {
+        setIsProjectOpen(false);
+        setIsStreamOpen(false);
+        setIsCreateProjectOpen(false);
+        setIsCreateStreamOpen(false);
+        setIsConnectOpen(false);
+        setIsRenameProjectOpen(false);
+        setIsRenameStreamOpen(false);
+        setDeleteTarget(null);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -745,21 +849,53 @@ export function LogheadDashboard() {
                   </div>
                   <div className="max-h-60 overflow-y-auto">
                     {projects.map((p) => (
-                      <button
+                      <div
                         key={p.id}
                         onClick={() => setSelectedProject(p.id)}
                         className={cn(
-                          "w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-zinc-800 transition-colors text-sm",
+                          "group relative flex items-center justify-between px-3 py-2 hover:bg-zinc-800 transition-colors cursor-pointer text-sm",
                           selectedProject === p.id
                             ? "text-emerald-400"
                             : "text-zinc-300",
                         )}
                       >
-                        <div className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">
-                          {p.name.charAt(0).toUpperCase()}
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">
+                            {p.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="truncate max-w-[140px]">
+                            {p.name}
+                          </span>
                         </div>
-                        {p.name}
-                      </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRenameProjectId(p.id);
+                              setRenameProjectName(p.name);
+                              setIsRenameProjectOpen(true);
+                              setIsProjectOpen(false);
+                            }}
+                            className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget({
+                                type: "project",
+                                id: p.id,
+                                name: p.name,
+                              });
+                              setIsProjectOpen(false);
+                            }}
+                            className="p-1 hover:bg-red-900/50 rounded text-zinc-400 hover:text-red-400"
+                          >
+                            <Trash className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
                     ))}
                     {projects.length === 0 && (
                       <div className="px-3 py-2 text-sm text-zinc-500">
@@ -812,24 +948,54 @@ export function LogheadDashboard() {
                       </div>
                       <div className="max-h-60 overflow-y-auto">
                         {streams.map((s) => (
-                          <button
+                          <div
                             key={s.id}
                             onClick={() => {
                               setSelectedStream(s.id);
                               setIsStreamOpen(false);
                             }}
                             className={cn(
-                              "w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-zinc-800 transition-colors text-sm",
+                              "group relative flex items-center justify-between px-3 py-2 hover:bg-zinc-800 transition-colors cursor-pointer text-sm",
                               selectedStream === s.id
                                 ? "text-emerald-400"
                                 : "text-zinc-300",
                             )}
                           >
-                            <div className="w-4 h-4 rounded border border-current flex items-center justify-center text-[10px]">
-                              <Box className="w-3 h-3" />
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <div className="w-4 h-4 rounded border border-current flex items-center justify-center text-[10px] shrink-0">
+                                <Box className="w-3 h-3" />
+                              </div>
+                              <span className="truncate">{s.name}</span>
                             </div>
-                            {s.name}
-                          </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRenameStreamId(s.id);
+                                  setRenameStreamName(s.name);
+                                  setIsRenameStreamOpen(true);
+                                  setIsStreamOpen(false);
+                                }}
+                                className="p-1.5 bg-zinc-900 border border-zinc-700 hover:bg-zinc-700 rounded-md text-zinc-400 hover:text-white transition-all shadow-sm"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteTarget({
+                                    type: "stream",
+                                    id: s.id,
+                                    name: s.name,
+                                  });
+                                  setIsStreamOpen(false);
+                                }}
+                                className="p-1.5 bg-zinc-900 border border-zinc-700 hover:bg-red-600/20 hover:border-red-500/50 rounded-md text-zinc-400 hover:text-red-400 transition-all shadow-sm"
+                              >
+                                <Trash className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
                         ))}
                         {streams.length === 0 && (
                           <div className="px-3 py-2 text-sm text-zinc-500">
@@ -960,10 +1126,16 @@ export function LogheadDashboard() {
             {viewMode === "logs" ? (
               currentStream ? (
                 <div className="flex-1 flex flex-col space-y-4 min-h-0">
-
                   <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col min-h-0">
                     <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-950">
                       <div className="flex items-center gap-2 min-w-0 flex-1 max-w-xl">
+                        <button
+                          onClick={() => setSelectedStream(null)}
+                          className="mr-2 p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                          title="Back to all streams"
+                        >
+                          <ArrowLeft className="w-4 h-4" />
+                        </button>
                         <Search className="w-4 h-4 text-zinc-500 shrink-0" />
                         <input
                           ref={searchInputRef}
@@ -1074,26 +1246,56 @@ export function LogheadDashboard() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {streams.map((stream) => (
-                    <button
+                    <div
                       key={stream.id}
-                      onClick={() => setSelectedStream(stream.id)}
-                      className="group text-left p-4 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl transition-all"
+                      className="group relative bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl transition-all"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 group-hover:bg-zinc-700 group-hover:text-white transition-colors">
-                          <Box className="w-5 h-5" />
+                      <button
+                        onClick={() => setSelectedStream(stream.id)}
+                        className="w-full text-left p-4 h-full"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 group-hover:bg-zinc-700 group-hover:text-white transition-colors">
+                            <Box className="w-5 h-5" />
+                          </div>
+                          <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
+                            {stream.type}
+                          </span>
                         </div>
-                        <span className="text-xs px-2 py-1 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                          {stream.type}
-                        </span>
+                        <div className="font-medium text-white group-hover:text-emerald-400 transition-colors">
+                          {stream.name}
+                        </div>
+                        <div className="text-xs text-zinc-500 mt-1 font-mono">
+                          {stream.id.substring(0, 8)}...
+                        </div>
+                      </button>
+                      <div className="absolute bottom-2 right-2 flex gap-1 z-10">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenameStreamId(stream.id);
+                            setRenameStreamName(stream.name);
+                            setIsRenameStreamOpen(true);
+                          }}
+                          className="p-1 bg-zinc-800/80 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget({
+                              type: "stream",
+                              id: stream.id,
+                              name: stream.name,
+                            });
+                          }}
+                          className="p-1 bg-zinc-800/80 hover:bg-red-900/50 rounded text-zinc-400 hover:text-red-400 transition-colors"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
                       </div>
-                      <div className="font-medium text-white group-hover:text-emerald-400 transition-colors">
-                        {stream.name}
-                      </div>
-                      <div className="text-xs text-zinc-500 mt-1 font-mono">
-                        {stream.id.substring(0, 8)}...
-                      </div>
-                    </button>
+                    </div>
                   ))}
                   <button
                     onClick={() => setIsCreateStreamOpen(true)}
@@ -1109,167 +1311,170 @@ export function LogheadDashboard() {
             ) : (
               <div className="flex-1 min-h-0 flex flex-col">
                 <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col min-h-0">
-                {/* Issues Header */}
-                <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-950">
-                  <h2 className="text-sm font-semibold flex items-center gap-2 text-zinc-300">
-                    <span className="text-emerald-400">●</span>
-                    Issues ({
-                      issues.filter((i) => i.status === "open").length
-                    }{" "}
-                    active)
-                  </h2>
-                  <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
-                    <button
-                      onClick={() => setIssueFilter("all")}
-                      className={cn(
-                        "px-3 py-1 text-xs font-medium rounded transition-colors",
-                        issueFilter === "all"
-                          ? "bg-zinc-700 text-white"
-                          : "text-zinc-400 hover:text-white",
-                      )}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() => setIssueFilter("open")}
-                      className={cn(
-                        "px-3 py-1 text-xs font-medium rounded transition-colors",
-                        issueFilter === "open"
-                          ? "bg-zinc-700 text-white"
-                          : "text-zinc-400 hover:text-white",
-                      )}
-                    >
-                      Open
-                    </button>
-                    <button
-                      onClick={() => setIssueFilter("resolved")}
-                      className={cn(
-                        "px-3 py-1 text-xs font-medium rounded transition-colors",
-                        issueFilter === "resolved"
-                          ? "bg-zinc-700 text-white"
-                          : "text-zinc-400 hover:text-white",
-                      )}
-                    >
-                      Resolved
-                    </button>
+                  {/* Issues Header */}
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-950">
+                    <h2 className="text-sm font-semibold flex items-center gap-2 text-zinc-300">
+                      <span className="text-emerald-400">●</span>
+                      Issues ({
+                        issues.filter((i) => i.status === "open").length
+                      }{" "}
+                      active)
+                    </h2>
+                    <div className="flex bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                      <button
+                        onClick={() => setIssueFilter("all")}
+                        className={cn(
+                          "px-3 py-1 text-xs font-medium rounded transition-colors",
+                          issueFilter === "all"
+                            ? "bg-zinc-700 text-white"
+                            : "text-zinc-400 hover:text-white",
+                        )}
+                      >
+                        All
+                      </button>
+                      <button
+                        onClick={() => setIssueFilter("open")}
+                        className={cn(
+                          "px-3 py-1 text-xs font-medium rounded transition-colors",
+                          issueFilter === "open"
+                            ? "bg-zinc-700 text-white"
+                            : "text-zinc-400 hover:text-white",
+                        )}
+                      >
+                        Open
+                      </button>
+                      <button
+                        onClick={() => setIssueFilter("resolved")}
+                        className={cn(
+                          "px-3 py-1 text-xs font-medium rounded transition-colors",
+                          issueFilter === "resolved"
+                            ? "bg-zinc-700 text-white"
+                            : "text-zinc-400 hover:text-white",
+                        )}
+                      >
+                        Resolved
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Issues List */}
+                  <div className="flex-1 overflow-y-auto space-y-2 p-4">
+                    {issues.length === 0 ? (
+                      <div className="text-center py-12 text-zinc-500 italic">
+                        No issues found.
+                      </div>
+                    ) : (
+                      issues.map((issue) => (
+                        <div
+                          key={issue.id}
+                          className="border border-zinc-800 bg-zinc-900/40 rounded-lg overflow-hidden"
+                        >
+                          <div
+                            className={cn(
+                              "p-4 cursor-pointer hover:bg-zinc-900/60 transition-colors flex items-start gap-4 border-l-4",
+                              issue.status === "open"
+                                ? "border-l-red-500"
+                                : "border-l-emerald-500",
+                            )}
+                            onClick={() =>
+                              setExpandedIssue(
+                                expandedIssue === issue.id ? null : issue.id,
+                              )
+                            }
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                {issue.status === "open" ? (
+                                  <span className="text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded uppercase">
+                                    Error
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">
+                                    Resolved
+                                  </span>
+                                )}
+                                <h3 className="font-mono text-sm font-medium text-zinc-200 truncate">
+                                  {issue.title}
+                                </h3>
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-zinc-500">
+                                <span>
+                                  Occurrences:{" "}
+                                  <strong className="text-zinc-300">
+                                    {issue.occurrence_count}
+                                  </strong>
+                                </span>
+                                <span>
+                                  First seen:{" "}
+                                  {new Date(issue.first_seen).toLocaleString()}
+                                </span>
+                                <span>
+                                  Last seen:{" "}
+                                  {new Date(issue.last_seen).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                            <ChevronDown
+                              className={cn(
+                                "w-5 h-5 text-zinc-600 transition-transform",
+                                expandedIssue === issue.id ? "rotate-180" : "",
+                              )}
+                            />
+                          </div>
+
+                          {expandedIssue === issue.id && (
+                            <div className="border-t border-zinc-800 bg-zinc-950 p-4 animate-in slide-in-from-top-2 duration-200">
+                              <div className="flex justify-end mb-4">
+                                {issue.status === "open" ? (
+                                  <button
+                                    onClick={() =>
+                                      resolveIssue(issue.id, "resolved")
+                                    }
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
+                                  >
+                                    Mark as Resolved
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      resolveIssue(issue.id, "open")
+                                    }
+                                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold uppercase tracking-wider rounded transition-colors"
+                                  >
+                                    Reopen Issue
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                                Recent Occurrences
+                              </div>
+                              <div className="space-y-1 font-mono text-xs">
+                                {issueDetails?.logs?.map((log: any) => (
+                                  <div
+                                    key={log.id}
+                                    className="bg-zinc-900/50 p-2 rounded text-zinc-400 break-all"
+                                  >
+                                    <span className="text-zinc-600 mr-2">
+                                      [{new Date(log.timestamp).toISOString()}]
+                                    </span>
+                                    {log.content}
+                                  </div>
+                                ))}
+                                {!issueDetails && (
+                                  <div className="text-zinc-600 italic">
+                                    Loading logs...
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
-
-                {/* Issues List */}
-                <div className="flex-1 overflow-y-auto space-y-2 p-4">
-                  {issues.length === 0 ? (
-                    <div className="text-center py-12 text-zinc-500 italic">
-                      No issues found.
-                    </div>
-                  ) : (
-                    issues.map((issue) => (
-                      <div
-                        key={issue.id}
-                        className="border border-zinc-800 bg-zinc-900/40 rounded-lg overflow-hidden"
-                      >
-                        <div
-                          className={cn(
-                            "p-4 cursor-pointer hover:bg-zinc-900/60 transition-colors flex items-start gap-4 border-l-4",
-                            issue.status === "open"
-                              ? "border-l-red-500"
-                              : "border-l-emerald-500",
-                          )}
-                          onClick={() =>
-                            setExpandedIssue(
-                              expandedIssue === issue.id ? null : issue.id,
-                            )
-                          }
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              {issue.status === "open" ? (
-                                <span className="text-xs font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded uppercase">
-                                  Error
-                                </span>
-                              ) : (
-                                <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">
-                                  Resolved
-                                </span>
-                              )}
-                              <h3 className="font-mono text-sm font-medium text-zinc-200 truncate">
-                                {issue.title}
-                              </h3>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-zinc-500">
-                              <span>
-                                Occurrences:{" "}
-                                <strong className="text-zinc-300">
-                                  {issue.occurrence_count}
-                                </strong>
-                              </span>
-                              <span>
-                                First seen:{" "}
-                                {new Date(issue.first_seen).toLocaleString()}
-                              </span>
-                              <span>
-                                Last seen:{" "}
-                                {new Date(issue.last_seen).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                          <ChevronDown
-                            className={cn(
-                              "w-5 h-5 text-zinc-600 transition-transform",
-                              expandedIssue === issue.id ? "rotate-180" : "",
-                            )}
-                          />
-                        </div>
-
-                        {expandedIssue === issue.id && (
-                          <div className="border-t border-zinc-800 bg-zinc-950 p-4 animate-in slide-in-from-top-2 duration-200">
-                            <div className="flex justify-end mb-4">
-                              {issue.status === "open" ? (
-                                <button
-                                  onClick={() =>
-                                    resolveIssue(issue.id, "resolved")
-                                  }
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded transition-colors"
-                                >
-                                  Mark as Resolved
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => resolveIssue(issue.id, "open")}
-                                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold uppercase tracking-wider rounded transition-colors"
-                                >
-                                  Reopen Issue
-                                </button>
-                              )}
-                            </div>
-
-                            <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                              Recent Occurrences
-                            </div>
-                            <div className="space-y-1 font-mono text-xs">
-                              {issueDetails?.logs?.map((log: any) => (
-                                <div
-                                  key={log.id}
-                                  className="bg-zinc-900/50 p-2 rounded text-zinc-400 break-all"
-                                >
-                                  <span className="text-zinc-600 mr-2">
-                                    [{new Date(log.timestamp).toISOString()}]
-                                  </span>
-                                  {log.content}
-                                </div>
-                              ))}
-                              {!issueDetails && (
-                                <div className="text-zinc-600 italic">
-                                  Loading logs...
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-                </div>{/* end card */}
+                {/* end card */}
               </div>
             )}
           </div>
@@ -1409,6 +1614,139 @@ export function LogheadDashboard() {
         </div>
       )}
 
+      {/* Rename Project Modal */}
+      {isRenameProjectOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Rename Project</h3>
+              <button
+                onClick={() => setIsRenameProjectOpen(false)}
+                className="text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  New Name
+                </label>
+                <input
+                  type="text"
+                  value={renameProjectName}
+                  onChange={(e) => setRenameProjectName(e.target.value)}
+                  placeholder="Project Name"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && renameProject()}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setIsRenameProjectOpen(false)}
+                  className="px-4 py-2 hover:bg-zinc-800 rounded text-sm text-zinc-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={renameProject}
+                  disabled={!renameProjectName.trim()}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium text-white transition-colors"
+                >
+                  Rename
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Stream Modal */}
+      {isRenameStreamOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Rename Stream</h3>
+              <button
+                onClick={() => setIsRenameStreamOpen(false)}
+                className="text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  New Name
+                </label>
+                <input
+                  type="text"
+                  value={renameStreamName}
+                  onChange={(e) => setRenameStreamName(e.target.value)}
+                  placeholder="Stream Name"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && renameStream()}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setIsRenameStreamOpen(false)}
+                  className="px-4 py-2 hover:bg-zinc-800 rounded text-sm text-zinc-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={renameStream}
+                  disabled={!renameStreamName.trim()}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium text-white transition-colors"
+                >
+                  Rename
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-sm w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-zinc-800">
+              <h3 className="font-semibold text-lg text-red-500 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                Delete {deleteTarget.type === "project" ? "Project" : "Stream"}
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-zinc-300 text-sm">
+                Are you sure you want to delete{" "}
+                <span className="font-bold text-white">
+                  "{deleteTarget.name}"
+                </span>
+                ? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="px-4 py-2 hover:bg-zinc-800 rounded text-sm text-zinc-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-sm font-medium text-white transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Connection Modal */}
       {isConnectOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -1459,8 +1797,8 @@ export function LogheadDashboard() {
                     </button>
                   </div>
                   <p className="text-xs text-zinc-500 mt-2">
-                    Use this token to authenticate your MCP client in the selected
-                    platform.
+                    Use this token to authenticate your MCP client in the
+                    selected platform.
                   </p>
                 </div>
               </div>

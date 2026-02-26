@@ -36,6 +36,11 @@ export class DbService {
     return true;
   }
 
+  async renameProject(id: string, name: string): Promise<Project | undefined> {
+    await this.db.run("UPDATE projects SET name = ? WHERE id = ?", [name, id]);
+    return this.getProject(id);
+  }
+
   async listProjects(): Promise<Project[]> {
     try {
       const projects = await this.db.query<Project>(
@@ -97,6 +102,14 @@ export class DbService {
   async deleteStream(id: string): Promise<boolean> {
     await this.db.run("DELETE FROM data_streams WHERE id = ?", [id]);
     return true;
+  }
+
+  async renameStream(id: string, name: string): Promise<Stream | undefined> {
+    await this.db.run("UPDATE data_streams SET name = ? WHERE id = ?", [
+      name,
+      id,
+    ]);
+    return this.getStream(id);
   }
 
   async listStreams(projectId: string): Promise<Stream[]> {

@@ -11,12 +11,14 @@ export declare class DbService {
     createProject(name: string): Promise<Project>;
     getProject(id: string): Promise<Project | undefined>;
     deleteProject(id: string): Promise<boolean>;
+    renameProject(id: string, name: string): Promise<Project | undefined>;
     listProjects(): Promise<Project[]>;
     createStream(projectId: string, type: string, name: string, config?: Record<string, unknown>): Promise<Stream & {
         token: string;
     }>;
     getStream(id: string): Promise<Stream | undefined>;
     deleteStream(id: string): Promise<boolean>;
+    renameStream(id: string, name: string): Promise<Stream | undefined>;
     listStreams(projectId: string): Promise<Stream[]>;
     cleanupOldLogs(days?: number): Promise<void>;
     addLog(streamId: string, content: string, metadata?: Record<string, unknown>): Promise<{
