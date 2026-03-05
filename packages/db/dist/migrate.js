@@ -73,6 +73,38 @@ export async function migrate(db, verbose = true) {
         // Column likely exists
     }
     await db.exec("CREATE INDEX IF NOT EXISTS idx_logs_issue_id ON logs(issue_id);");
+    // Add embedding to issues for semantic grouping
+    try {
+        // We try to add F32_BLOB(1024) which is the standard vector type hint in newer sqlite-vec/libsql
+        await db.exec("ALTER TABLE issues ADD COLUMN embedding F32_BLOB(1024);");
+    }
+    catch (e) {
+        // Column might already exist or F32_BLOB is not supported as a column constraint name (though it should be fine as type affinity)
+        const msg = String(e);
+        if (!msg.toLowerCase().includes("duplicate column")) {
+            // If it fails, try simple BLOB
+            try {
+                await db.exec("ALTER TABLE issues ADD COLUMN embedding BLOB;");
+            }
+            catch (e2) {
+                // Ignore if already exists
+            }
+        }
+    }
+    // Create vector index for issues if supported
+    try {
+        // Vector index creation might fail if vec extension is not loaded or table structure doesn't support it directly
+        // This uses the syntax for native vector indices in some environments or extensions
+        await db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_issues_embedding 
+      ON issues 
+      USING hnsw(embedding)
+    `);
+    }
+    catch (e) {
+        // Ignore vector index creation failures (common in environments without full vector support)
+        // console.warn("Vector index creation for issues failed:", e);
+    }
     // Native Turso/libSQL vector table + index
     let hasVecTable = false;
     let hasNativeVectorColumn = false;

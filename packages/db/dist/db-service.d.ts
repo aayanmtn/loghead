@@ -1,7 +1,7 @@
 import { DatabaseAdapter } from "./adapter.js";
 import { OllamaService } from "./ollama-service.js";
 import { AuthService } from "./auth-service.js";
-import { Project, Stream, Log, SearchResult } from "./types.js";
+import { Project, Stream, Log, SearchResult, Issue } from "./types.js";
 export declare class DbService {
     private db;
     readonly auth: AuthService;
@@ -29,7 +29,10 @@ export declare class DbService {
     close(): Promise<void>;
     private processErrorGrouping;
     private generateFingerprint;
-    getIssues(projectId: string, status?: string, limit?: number): Promise<any[]>;
-    getIssue(id: string): Promise<any>;
+    getIssues(projectId: string, status?: string, limit?: number): Promise<Issue[]>;
+    getIssue(id: string): Promise<{
+        issue: Issue;
+        logs: Log[];
+    } | null>;
     updateIssueStatus(id: string, status: "open" | "resolved"): Promise<void>;
 }
