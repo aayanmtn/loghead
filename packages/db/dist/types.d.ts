@@ -25,3 +25,15 @@ export interface SearchResult {
     similarity?: number;
     metadata?: Record<string, unknown>;
 }
+export interface Issue {
+    id: string;
+    project_id: string;
+    fingerprint: string;
+    title: string;
+    status: 'open' | 'resolved';
+    first_seen: string;
+    last_seen: string;
+    occurrence_count: number;
+    created_at: string;
+    embedding?: number[] | string | Buffer | null;
+}

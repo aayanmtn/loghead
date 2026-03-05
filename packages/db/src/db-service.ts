@@ -1,8 +1,11 @@
 import { DatabaseAdapter } from "./adapter.js";
 import { OllamaService } from "./ollama-service.js";
 import { AuthService } from "./auth-service.js";
-import { Project, Stream, Log, SearchResult } from "./types.js";
+import { Project, Stream, Log, SearchResult, Issue } from "./types.js";
 import { randomUUID, createHash } from "crypto";
+import { normalizeError } from "./ai/normalizeError.js";
+import { cosineSimilarity } from "./ai/cosineSimilarity.js";
+import { generateEmbedding } from "./ai/embedding.js";
 
 export class DbService {
   private db: DatabaseAdapter;
@@ -466,41 +469,132 @@ export class DbService {
 
     if (!isError) return;
 
-    // Step B: Generate Fingerprint
+    // Normalize for semantic processing
+    const normalizedContent = normalizeError(content);
+
+    // Step B: Generate Embedding
+    let embedding: number[] | null = null;
+    try {
+      embedding = await generateEmbedding(this.ollama, normalizedContent);
+    } catch (e) {
+      // console.warn("Failed to generate embedding for error grouping", e);
+    }
+
+    let matchedIssueId: string | null = null;
+
+    // Step C: Semantic Search (if embedding available)
+    if (embedding && embedding.length > 0) {
+      try {
+        const vectorJson = JSON.stringify(embedding);
+        // Find top 5 nearest issues in the project
+        // We use vector_distance_cos which returns cosine distance (1 - similarity)
+        // Smaller distance = higher similarity
+        const candidates = await this.db.query<{
+          id: string;
+          distance: number;
+        }>(
+          `SELECT id, vector_distance_cos(embedding, vector(?)) as distance
+                 FROM issues
+                 WHERE project_id = ? AND embedding IS NOT NULL
+                 ORDER BY distance ASC
+                 LIMIT 5`,
+          [vectorJson, projectId],
+        );
+
+        // Check if top candidate meets threshold
+        // Cosine Similarity = 1 - Cosine Distance
+        // Threshold 0.9 means Distance <= 0.1
+        const bestCandidate = candidates[0];
+        if (bestCandidate) {
+          const similarity = 1 - bestCandidate.distance;
+          if (similarity >= 0.9) {
+            matchedIssueId = bestCandidate.id;
+          }
+        }
+      } catch (e) {
+        // Vector search might fail if extension not loaded or table not ready
+        // console.warn("Semantic issue search failed", e);
+      }
+    }
+
+    // Step D: Fingerprint Fallback (Backward Compatibility & Exact Matches)
     const fingerprint = this.generateFingerprint(content);
 
-    // Step C: Find Existing Issue
-    const existingIssue = await this.db.get<{
-      id: string;
-      occurrence_count: number;
-    }>(
-      "SELECT id, occurrence_count FROM issues WHERE project_id = ? AND fingerprint = ? LIMIT 1",
-      [projectId, fingerprint],
-    );
+    if (!matchedIssueId) {
+      const existingIssue = await this.db.get<{
+        id: string;
+        occurrence_count: number;
+        embedding?: any;
+      }>(
+        "SELECT id, occurrence_count, embedding FROM issues WHERE project_id = ? AND fingerprint = ? LIMIT 1",
+        [projectId, fingerprint],
+      );
 
-    let issueId: string;
+      if (existingIssue) {
+        matchedIssueId = existingIssue.id;
 
-    if (existingIssue) {
-      // Step D: Update Issue
-      issueId = existingIssue.id;
+        // Optimization: If we matched by fingerprint but semantic search failed (or issue had no embedding),
+        // update the issue with this new embedding so future semantic searches find it.
+        if (embedding && embedding.length > 0 && !existingIssue.embedding) {
+          try {
+            await this.db.run(
+              "UPDATE issues SET embedding = vector(?) WHERE id = ?",
+              [JSON.stringify(embedding), matchedIssueId],
+            );
+          } catch (e) {
+            /* ignore update failure */
+          }
+        }
+      }
+    }
+
+    if (matchedIssueId) {
+      // Step E: Update Existing Issue
       await this.db.run(
         "UPDATE issues SET last_seen = CURRENT_TIMESTAMP, occurrence_count = occurrence_count + 1, status = CASE WHEN status = 'resolved' THEN 'open' ELSE status END WHERE id = ?",
-        [issueId],
+        [matchedIssueId],
       );
     } else {
-      // Step E: Create Issue
-      issueId = randomUUID();
+      // Step F: Create New Issue
+      matchedIssueId = randomUUID();
       const title = content.split("\n")[0].substring(0, 120);
-      await this.db.run(
-        `INSERT INTO issues (id, project_id, fingerprint, title, status, first_seen, last_seen, occurrence_count, created_at)
-         VALUES (?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP)`,
-        [issueId, projectId, fingerprint, title],
-      );
+
+      // Prepare embedding value
+      // If embedding is present, we need to insert it using vector() function or as blob
+      // If no embedding, we insert NULL
+      if (embedding && embedding.length > 0) {
+        try {
+          await this.db.run(
+            `INSERT INTO issues (id, project_id, fingerprint, title, status, first_seen, last_seen, occurrence_count, created_at, embedding)
+                 VALUES (?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, vector(?))`,
+            [
+              matchedIssueId,
+              projectId,
+              fingerprint,
+              title,
+              JSON.stringify(embedding),
+            ],
+          );
+        } catch (e) {
+          // Fallback if vector insert fails (e.g. no vector support)
+          await this.db.run(
+            `INSERT INTO issues (id, project_id, fingerprint, title, status, first_seen, last_seen, occurrence_count, created_at)
+                 VALUES (?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP)`,
+            [matchedIssueId, projectId, fingerprint, title],
+          );
+        }
+      } else {
+        await this.db.run(
+          `INSERT INTO issues (id, project_id, fingerprint, title, status, first_seen, last_seen, occurrence_count, created_at)
+             VALUES (?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP)`,
+          [matchedIssueId, projectId, fingerprint, title],
+        );
+      }
     }
 
     // Link log to issue
     await this.db.run("UPDATE logs SET issue_id = ? WHERE rowid = ?", [
-      issueId,
+      matchedIssueId,
       logRowId,
     ]);
   }
@@ -524,7 +618,7 @@ export class DbService {
     projectId: string,
     status?: string,
     limit = 50,
-  ): Promise<any[]> {
+  ): Promise<Issue[]> {
     let sql = "SELECT * FROM issues WHERE project_id = ?";
     const params: any[] = [projectId];
     if (status) {
@@ -533,13 +627,16 @@ export class DbService {
     }
     sql += " ORDER BY last_seen DESC LIMIT ?";
     params.push(limit);
-    return this.db.query(sql, params);
+    return this.db.query<Issue>(sql, params);
   }
 
-  async getIssue(id: string): Promise<any> {
-    const issue = await this.db.get("SELECT * FROM issues WHERE id = ?", [id]);
+  async getIssue(id: string): Promise<{ issue: Issue; logs: Log[] } | null> {
+    const issue = await this.db.get<Issue>(
+      "SELECT * FROM issues WHERE id = ?",
+      [id],
+    );
     if (!issue) return null;
-    const logs = await this.db.query(
+    const logs = await this.db.query<Log>(
       "SELECT * FROM logs WHERE issue_id = ? ORDER BY timestamp DESC LIMIT 100",
       [id],
     );
