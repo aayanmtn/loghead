@@ -334,6 +334,8 @@ export function LogheadDashboard() {
   const [activeConnectPlatform, setActiveConnectPlatform] =
     useState<ConnectPlatform>("claudeCode");
   const [copied, setCopied] = useState(false);
+  const [apiUrlCopied, setApiUrlCopied] = useState(false);
+  const [snippetCopied, setSnippetCopied] = useState(false);
 
   // Dropdown states
   const [isProjectOpen, setIsProjectOpen] = useState(false);
@@ -1771,8 +1773,27 @@ export function LogheadDashboard() {
                   <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                     Loghead API URL
                   </label>
-                  <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 select-all break-all">
-                    {apiBaseUrl || "Loading..."}
+                  <div className="relative">
+                    <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm font-mono text-zinc-300 break-all pr-12 min-h-[60px]">
+                      {apiBaseUrl || "Loading..."}
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (apiBaseUrl) {
+                          navigator.clipboard.writeText(apiBaseUrl);
+                          setApiUrlCopied(true);
+                          setTimeout(() => setApiUrlCopied(false), 2000);
+                        }
+                      }}
+                      className="absolute top-2 right-2 p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                      title="Copy URL"
+                    >
+                      {apiUrlCopied ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -1840,13 +1861,32 @@ export function LogheadDashboard() {
                     </ol>
 
                     {activeGuide.snippet && (
-                      <div>
+                      <div className="relative group">
                         <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                           {activeGuide.snippetLabel}
                         </div>
-                        <pre className="bg-zinc-950 border border-zinc-800 rounded p-3 text-xs font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
-                          {activeGuide.snippet}
-                        </pre>
+                        <div className="relative">
+                          <pre className="bg-zinc-950 border border-zinc-800 rounded p-3 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-words pr-12">
+                            {activeGuide.snippet}
+                          </pre>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                activeGuide.snippet,
+                              );
+                              setSnippetCopied(true);
+                              setTimeout(() => setSnippetCopied(false), 2000);
+                            }}
+                            className="absolute top-2 right-2 p-1.5 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            title="Copy snippet"
+                          >
+                            {snippetCopied ? (
+                              <Check className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
