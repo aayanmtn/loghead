@@ -362,7 +362,9 @@ export class DbService {
                     try {
                         await this.db.run("UPDATE issues SET embedding = vector(?) WHERE id = ?", [JSON.stringify(embedding), matchedIssueId]);
                     }
-                    catch (e) { /* ignore update failure */ }
+                    catch (e) {
+                        /* ignore update failure */
+                    }
                 }
             }
         }
@@ -380,7 +382,13 @@ export class DbService {
             if (embedding && embedding.length > 0) {
                 try {
                     await this.db.run(`INSERT INTO issues (id, project_id, fingerprint, title, status, first_seen, last_seen, occurrence_count, created_at, embedding)
-                 VALUES (?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, vector(?))`, [matchedIssueId, projectId, fingerprint, title, JSON.stringify(embedding)]);
+                 VALUES (?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, vector(?))`, [
+                        matchedIssueId,
+                        projectId,
+                        fingerprint,
+                        title,
+                        JSON.stringify(embedding),
+                    ]);
                 }
                 catch (e) {
                     // Fallback if vector insert fails (e.g. no vector support)
@@ -421,9 +429,7 @@ export class DbService {
         return this.db.query(sql, params);
     }
     async getIssue(id) {
-        const issue = await this.db.get("SELECT * FROM issues WHERE id = ?", [
-            id,
-        ]);
+        const issue = await this.db.get("SELECT * FROM issues WHERE id = ?", [id]);
         if (!issue)
             return null;
         const logs = await this.db.query("SELECT * FROM logs WHERE issue_id = ? ORDER BY timestamp DESC LIMIT 100", [id]);

@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
-    "playground": "vite"
+    "playground": "vite",
+    "dev:log": " vite | npx @loghead/core --base-url http://localhost:3001 --token eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjNzdkNGQ4Mi00MDNiLTQ1NGItODM3MC05NTExZTAwMGUzNmYiLCJpc3MiOiJsb2doZWFkIiwiaWF0IjoxNzczMjk4ODM1fQ.htYMqfDkfoFTZqeNwoY_ZEcHRfRzBt21qGDjAATa37s9Sn0m0-r41rZ1Q6K11VRSTDhqq622cNDxmvvglmaSzA"
   },
   "dependencies": {
     "lucide-react": "^0.555.0",
