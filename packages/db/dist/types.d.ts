@@ -30,7 +30,7 @@ export interface Issue {
     project_id: string;
     fingerprint: string;
     title: string;
-    status: 'open' | 'resolved';
+    status: "open" | "resolved";
     first_seen: string;
     last_seen: string;
     occurrence_count: number;
