@@ -325,7 +325,7 @@ export async function startApiServer(db: DbService, auth: AuthService) {
       body.name,
       body.config || {},
     );
-    res.json(stream);
+    res.json(stream); 
   });
 
   app.get("/api/search", async (req, res) => {

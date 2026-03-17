@@ -353,7 +353,7 @@ The `@loghead/core` server exposes a REST API on port `4567` (by default).
 - **List Streams**
   - `GET /api/streams?projectId=<PROJECT_ID>`
 - **Create Stream**
-  - `POST /api/streams/create`
+  - `POST /api/streams`
   - Body: `{ "projectId": "string", "type": "string", "name": "string", "config": {} }`
 - **Delete Stream**
   - `DELETE /api/streams/:id`
