@@ -11,7 +11,7 @@ async function main() {
     .option("container", { type: "string", description: "Container ID/Name" })
     .option("api", {
       type: "string",
-      default: "https://api.loghead.dev",
+      default: "https://loghead.dev",
       description: "API URL",
     })
     .option("local", {

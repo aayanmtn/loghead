@@ -8,7 +8,7 @@ async function main() {
     .option("token", { type: "string", description: "Stream token" })
     .option("api", {
       type: "string",
-      default: "https://api.loghead.dev",
+      default: "https://loghead.dev",
       description: "API URL",
     })
     .option("base-url", {
