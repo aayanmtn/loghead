@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (result.serverUrl) {
         serverUrlInput.value = result.serverUrl;
       } else {
-        serverUrlInput.value = "http://localhost:4567";
+        serverUrlInput.value = "https://api.loghead.dev";
       }
 
       const tabConfig = result[configKey];

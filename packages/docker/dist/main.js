@@ -12,7 +12,15 @@ async function main() {
     const argv = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
         .option("token", { type: "string", description: "Stream token" })
         .option("container", { type: "string", description: "Container ID/Name" })
-        .option("api", { type: "string", default: "http://localhost:4567", description: "API URL" })
+        .option("api", {
+        type: "string",
+        default: "https://api.loghead.dev",
+        description: "API URL",
+    })
+        .option("local", {
+        type: "boolean",
+        description: "Use local loghead server (http://localhost:4567)",
+    })
         .help()
         .parse();
     const token = argv.token || process.env.LOGHEAD_TOKEN;
@@ -25,15 +33,18 @@ async function main() {
         console.error("Error: Missing --container argument.");
         process.exit(1);
     }
-    const apiUrl = argv.api
+    let apiUrl = argv.api
         .replace(/\/$/, "")
         .replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
+    if (argv.local || process.env.LOGHEAD_LOCAL === "true") {
+        apiUrl = "http://localhost:4567".replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
+    }
     console.error(`[Loghead Docker] Attaching to ${container} and forwarding to ${apiUrl}...`);
     const child = (0, child_process_1.spawn)("docker", ["logs", "-f", container]);
     const processStream = async (stream, source) => {
         const rl = readline_1.default.createInterface({
             input: stream,
-            terminal: false
+            terminal: false,
         });
         let batch = [];
         let timer = null;
@@ -49,18 +60,18 @@ async function main() {
                 const parts = token.split(".");
                 if (parts.length !== 3)
                     throw new Error("Invalid JWT token format");
-                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
                 const streamId = payload.sub;
                 const res = await fetch(`${apiUrl}/api/ingest`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
+                        Authorization: `Bearer ${token}`,
                     },
                     body: JSON.stringify({
                         streamId,
-                        logs: logsToSend
-                    })
+                        logs: logsToSend,
+                    }),
                 });
                 if (!res.ok) {
                     console.error(`[Loghead] Failed to send logs: ${res.status} ${await res.text()}`);
@@ -70,12 +81,12 @@ async function main() {
                 console.error(`[Loghead] Error sending logs:`, e);
             }
         };
-        rl.on('line', (line) => {
+        rl.on("line", (line) => {
             if (!line.trim())
                 return;
             batch.push({
                 content: line,
-                metadata: { source, container }
+                metadata: { source, container },
             });
             if (batch.length >= 10) {
                 flush();
@@ -88,7 +99,7 @@ async function main() {
     };
     processStream(child.stdout, "STDOUT");
     processStream(child.stderr, "STDERR");
-    child.on('close', (code) => {
+    child.on("close", (code) => {
         console.log(`Docker process exited with code ${code}`);
         process.exit(code || 0);
     });

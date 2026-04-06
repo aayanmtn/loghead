@@ -13,7 +13,7 @@
 
   "permissions": ["storage", "scripting"],
 
-  "host_permissions": ["http://localhost:4567/*"],
+  "host_permissions": ["http://localhost:4567/*", "https://api.loghead.dev/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
