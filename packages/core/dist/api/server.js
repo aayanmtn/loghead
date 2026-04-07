@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import chalk from "chalk";
+import { ingestCustomLogs, ingestOtlpLogs } from "./controllers.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export async function startApiServer(db, auth) {
@@ -26,35 +27,6 @@ export async function startApiServer(db, auth) {
         console.warn(chalk.yellow("Frontend build not found. Run 'npm run build' in packages/core/frontend to build the UI."));
     }
     await auth.initialize();
-    // console.log(chalk.bold.green(`\n💻 API server running on:`));
-    // console.log(chalk.green(`http://localhost:${port}`));
-    // Helper to parse OTLP attributes
-    const parseOtlpAttributes = (attributes) => {
-        if (!Array.isArray(attributes))
-            return {};
-        const result = {};
-        for (const attr of attributes) {
-            if (attr.key && attr.value) {
-                // Extract value based on type (stringValue, intValue, boolValue, etc.)
-                const val = attr.value;
-                if (val.stringValue !== undefined)
-                    result[attr.key] = val.stringValue;
-                else if (val.intValue !== undefined)
-                    result[attr.key] = parseInt(val.intValue);
-                else if (val.doubleValue !== undefined)
-                    result[attr.key] = val.doubleValue;
-                else if (val.boolValue !== undefined)
-                    result[attr.key] = val.boolValue;
-                else if (val.arrayValue !== undefined)
-                    result[attr.key] = val.arrayValue; // Simplified
-                else if (val.kvlistValue !== undefined)
-                    result[attr.key] = val.kvlistValue; // Simplified
-                else
-                    result[attr.key] = val;
-            }
-        }
-        return result;
-    };
     app.post("/v1/logs", async (req, res) => {
         console.log(`[API] POST /v1/logs received`);
         try {
@@ -64,60 +36,17 @@ export async function startApiServer(db, auth) {
                 return res.status(401).json({ code: 16, message: "Unauthenticated" });
             }
             const token = authHeader.split(" ")[1];
-            const payload = await auth.verifyToken(token);
-            if (!payload || !payload.streamId) {
-                console.warn("[API] /v1/logs Unauthorized: Invalid token");
-                return res.status(401).json({ code: 16, message: "Invalid token" });
-            }
-            const streamId = payload.streamId;
-            console.log(`[API] Ingesting OTLP logs for stream: ${streamId}`);
-            const { resourceLogs } = req.body;
-            if (!resourceLogs || !Array.isArray(resourceLogs)) {
-                console.warn("[API] /v1/logs Invalid payload");
-                return res.status(400).json({ code: 3, message: "Invalid payload" });
-            }
-            // ... existing logic ...
-            let count = 0;
-            // ... loop ...
-            // (I will keep the existing loop logic but add a log at the end)
-            /* ... existing loop code ... */
-            for (const resourceLog of resourceLogs) {
-                const resourceAttrs = parseOtlpAttributes(resourceLog.resource?.attributes);
-                if (resourceLog.scopeLogs) {
-                    for (const scopeLog of resourceLog.scopeLogs) {
-                        const scopeName = scopeLog.scope?.name;
-                        if (scopeLog.logRecords) {
-                            for (const log of scopeLog.logRecords) {
-                                let content = "";
-                                if (log.body?.stringValue)
-                                    content = log.body.stringValue;
-                                else if (log.body?.kvlistValue)
-                                    content = JSON.stringify(log.body.kvlistValue);
-                                else if (typeof log.body === "string")
-                                    content = log.body; // Fallback
-                                const logAttrs = parseOtlpAttributes(log.attributes);
-                                // Merge attributes: Resource > Scope (if any) > Log
-                                const metadata = {
-                                    ...resourceAttrs,
-                                    ...logAttrs,
-                                    severity: log.severityText || log.severityNumber,
-                                    scope: scopeName,
-                                    timestamp: log.timeUnixNano,
-                                };
-                                if (content) {
-                                    await db.addLog(streamId, content, metadata);
-                                    count++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            console.log(`[API] /v1/logs Ingested ${count} logs`);
-            res.json({ partialSuccess: {}, logsIngested: count });
+            const result = await ingestOtlpLogs(req.body, token, db, auth);
+            res.json(result);
         }
         catch (e) {
             console.error("OTLP Ingest error:", e);
+            if (e.message.includes("Unauthorized")) {
+                return res.status(401).json({ code: 16, message: e.message });
+            }
+            if (e.message.includes("Invalid payload")) {
+                return res.status(400).json({ code: 3, message: e.message });
+            }
             res.status(500).json({ code: 13, message: String(e) });
         }
     });
@@ -130,42 +59,20 @@ export async function startApiServer(db, auth) {
                 return res.status(401).send("Unauthorized: Missing token");
             }
             const token = authHeader.split(" ")[1];
-            const payload = await auth.verifyToken(token);
-            if (!payload || !payload.streamId) {
-                console.warn("[API] /api/ingest Unauthorized: Invalid token");
-                return res.status(401).send("Unauthorized: Invalid token");
-            }
-            const { streamId, logs } = req.body;
-            console.log(`[API] Ingesting logs for stream: ${streamId}`);
-            if (streamId !== payload.streamId) {
-                console.warn(`[API] /api/ingest Forbidden: Token streamId ${payload.streamId} != body streamId ${streamId}`);
-                return res.status(403).send("Forbidden: Token does not match streamId");
-            }
-            if (!logs) {
-                console.warn("[API] /api/ingest Missing logs");
-                return res.status(400).send("Missing logs");
-            }
-            const logEntries = Array.isArray(logs) ? logs : [logs];
-            console.log(`[API] Processing ${logEntries.length} log entries`);
-            for (const log of logEntries) {
-                let content = "";
-                let metadata = {};
-                if (typeof log === "string") {
-                    content = log;
-                }
-                else if (typeof log === "object") {
-                    content = log.content || JSON.stringify(log);
-                    metadata = log.metadata || {};
-                }
-                if (content) {
-                    await db.addLog(streamId, content, metadata);
-                }
-            }
-            console.log(`[API] /api/ingest Successfully added ${logEntries.length} logs`);
-            res.json({ success: true, count: logEntries.length });
+            const result = await ingestCustomLogs(req.body, token, db, auth);
+            res.json(result);
         }
         catch (e) {
             console.error("Ingest error:", e);
+            if (e.message.includes("Unauthorized")) {
+                return res.status(401).send(e.message);
+            }
+            if (e.message.includes("Forbidden")) {
+                return res.status(403).send(e.message);
+            }
+            if (e.message.includes("Missing logs")) {
+                return res.status(400).send(e.message);
+            }
             res.status(500).json({ error: String(e) });
         }
     });

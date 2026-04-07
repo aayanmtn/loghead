@@ -312,7 +312,15 @@ exports.handler = async (event) => {
   }
 }
 
-export function LogheadDashboard() {
+export interface LogheadDashboardProps {
+  apiUrl?: string;
+  apiToken?: string;
+}
+
+export function LogheadDashboard({
+  apiUrl = "",
+  apiToken = "",
+}: LogheadDashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [streams, setStreams] = useState<Stream[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
@@ -390,9 +398,18 @@ export function LogheadDashboard() {
     }
   }, [logs, isAutoScroll]);
 
+  const apiFetch = async (path: string, options: RequestInit = {}) => {
+    const url = `${apiUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+    const headers = { ...options.headers } as Record<string, string>;
+    if (apiToken) {
+      headers["Authorization"] = `Bearer ${apiToken}`;
+    }
+    return fetch(url, { ...options, headers });
+  };
+
   const fetchProjects = async () => {
     try {
-      const res = await fetch("/api/projects");
+      const res = await apiFetch("/api/projects");
       if (!res.ok) throw new Error("Failed to fetch projects");
       const data = await res.json();
       setProjects(data);
@@ -406,7 +423,7 @@ export function LogheadDashboard() {
 
   const fetchStreams = async (projectId: string) => {
     try {
-      const res = await fetch(`/api/streams?projectId=${projectId}`);
+      const res = await apiFetch(`/api/streams?projectId=${projectId}`);
       if (!res.ok) throw new Error("Failed to fetch streams");
       const data = await res.json();
       setStreams(data);
@@ -420,7 +437,7 @@ export function LogheadDashboard() {
   const fetchStreamToken = async (streamId: string) => {
     setStreamTokenLoading(true);
     try {
-      const res = await fetch(`/api/streams/${streamId}/token`);
+      const res = await apiFetch(`/api/streams/${streamId}/token`);
       if (!res.ok) throw new Error("Failed to fetch token");
       const data = await res.json();
       setStreamToken(data.token);
@@ -436,7 +453,7 @@ export function LogheadDashboard() {
 
   const fetchLogs = async (streamId: string) => {
     try {
-      const res = await fetch(`/api/logs?streamId=${streamId}&limit=1000`);
+      const res = await apiFetch(`/api/logs?streamId=${streamId}&limit=1000`);
       if (!res.ok) {
         console.error(`Failed to fetch logs: ${res.status} ${res.statusText}`);
         return;
@@ -492,7 +509,7 @@ export function LogheadDashboard() {
       let url = `/api/issues?projectId=${projectId}`;
       if (issueFilter !== "all") url += `&status=${issueFilter}`;
 
-      const res = await fetch(url);
+      const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
         setIssues(data);
@@ -504,7 +521,7 @@ export function LogheadDashboard() {
 
   const fetchIssueDetails = async (issueId: string) => {
     try {
-      const res = await fetch(`/api/issues/${issueId}`);
+      const res = await apiFetch(`/api/issues/${issueId}`);
       if (res.ok) {
         const data = await res.json();
         setIssueDetails(data);
@@ -519,7 +536,7 @@ export function LogheadDashboard() {
     newStatus: "open" | "resolved",
   ) => {
     try {
-      await fetch(`/api/issues/${issueId}`, {
+      await apiFetch(`/api/issues/${issueId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -542,7 +559,7 @@ export function LogheadDashboard() {
     if (!id || !renameProjectName.trim()) return;
 
     try {
-      const res = await fetch(`/api/projects/${id}`, {
+      const res = await apiFetch(`/api/projects/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: renameProjectName }),
@@ -566,7 +583,7 @@ export function LogheadDashboard() {
     if (!id || !renameStreamName.trim()) return;
 
     try {
-      const res = await fetch(`/api/streams/${id}`, {
+      const res = await apiFetch(`/api/streams/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: renameStreamName }),
@@ -589,7 +606,7 @@ export function LogheadDashboard() {
     if (!deleteTarget) return;
 
     try {
-      await fetch(`/api/${deleteTarget.type}s/${deleteTarget.id}`, {
+      await apiFetch(`/api/${deleteTarget.type}s/${deleteTarget.id}`, {
         method: "DELETE",
       });
 
@@ -634,7 +651,7 @@ export function LogheadDashboard() {
   const createProject = async () => {
     if (!newProjectName.trim()) return;
     try {
-      const res = await fetch("/api/projects", {
+      const res = await apiFetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newProjectName }),
@@ -654,7 +671,7 @@ export function LogheadDashboard() {
   const createStream = async () => {
     if (!newStreamName.trim() || !selectedProject) return;
     try {
-      const res = await fetch("/api/streams", {
+      const res = await apiFetch("/api/streams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -681,7 +698,7 @@ export function LogheadDashboard() {
       // Cloud might not expose a single system-wide token easily.
       // For now, let's assume we fetch a personal access token or similar.
       // If the route doesn't exist, handle it gracefully.
-      const res = await fetch("/api/connection");
+      const res = await apiFetch("/api/connection");
       if (res.ok) {
         const data = await res.json();
         setConnectionInfo(data);
@@ -780,7 +797,7 @@ export function LogheadDashboard() {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await fetch(
+        const res = await apiFetch(
           `/api/logs?streamId=${selectedStream}&q=${encodeURIComponent(searchQuery)}&limit=50`,
         );
         if (res.ok) {
@@ -816,7 +833,8 @@ export function LogheadDashboard() {
   const currentProject = projects.find((p) => p.id === selectedProject);
   const currentStream = streams.find((s) => s.id === selectedStream);
   const apiBaseUrl = normalizeApiBaseUrl(
-    connectionInfo?.mcpUrl ||
+    apiUrl ||
+      connectionInfo?.mcpUrl ||
       (typeof window !== "undefined" ? window.location.origin : ""),
   );
 
@@ -1205,7 +1223,7 @@ export function LogheadDashboard() {
                         <button
                           onClick={async () => {
                             try {
-                              const res = await fetch("/api/ingest", {
+                              const res = await apiFetch("/api/ingest", {
                                 method: "POST",
                                 headers: {
                                   "Content-Type": "application/json",
