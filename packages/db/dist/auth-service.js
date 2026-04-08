@@ -30,12 +30,25 @@ export class AuthService {
         // Check if token exists in DB
         const row = await this.db.get("SELECT value FROM system_config WHERE key = 'mcp_token'");
         if (row?.value) {
-            return row.value;
+            const decoded = jwt.decode(row.value);
+            if (!this.tenantId || (decoded && decoded.tenantId === this.tenantId)) {
+                return row.value;
+            }
         }
         // Create new token
         // A system token that has access to everything (conceptually)
-        const token = jwt.sign({ sub: "system:mcp", iss: "loghead", role: "admin" }, this.secretKey, { algorithm: "HS512" });
-        await this.db.run("INSERT INTO system_config (key, value) VALUES ('mcp_token', ?)", [token]);
+        const payload = { sub: "system:mcp", iss: "loghead", role: "admin" };
+        if (this.tenantId) {
+            payload.tenantId = this.tenantId;
+        }
+        const token = jwt.sign(payload, this.secretKey, { algorithm: "HS512" });
+        // Update or Insert
+        if (row) {
+            await this.db.run("UPDATE system_config SET value = ? WHERE key = 'mcp_token'", [token]);
+        }
+        else {
+            await this.db.run("INSERT INTO system_config (key, value) VALUES ('mcp_token', ?)", [token]);
+        }
         return token;
     }
     async createStreamToken(streamId) {
@@ -57,7 +70,7 @@ export class AuthService {
             const payload = jwt.verify(token, this.secretKey, { issuer: "loghead", algorithms: ["HS512"] });
             if (!payload.sub)
                 return null;
-            return { streamId: payload.sub };
+            return { streamId: payload.sub, role: payload.role };
         }
         catch (e) {
             console.error("Token verification failed:", e);
