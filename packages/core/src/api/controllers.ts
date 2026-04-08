@@ -38,7 +38,7 @@ export async function ingestCustomLogs(
   const { streamId, logs } = body;
   console.log(`[API] Ingesting logs for stream: ${streamId}`);
 
-  if (streamId !== payload.streamId) {
+  if (payload.role !== "admin" && streamId !== payload.streamId) {
     throw new Error("Forbidden: Token does not match streamId");
   }
 

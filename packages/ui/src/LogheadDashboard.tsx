@@ -149,7 +149,7 @@ function normalizeApiBaseUrl(url: string): string {
 }
 
 function getIngestionCommand(baseUrl: string, token: string) {
-  return `npx @loghead/core --base-url ${baseUrl} --token ${token}`;
+  return `npx @loghead/terminal --base-url ${baseUrl} --token ${token}`;
 }
 
 function sharedMcpJson(apiUrl: string, token: string): string {

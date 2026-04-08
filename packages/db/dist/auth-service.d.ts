@@ -10,6 +10,7 @@ export declare class AuthService {
     createStreamToken(streamId: string): Promise<string>;
     verifyToken(token: string): Promise<{
         streamId: string;
+        role?: string;
     } | null>;
     static decodeTokenUnsafe(token: string): any;
 }
