@@ -404,6 +404,19 @@ export function LogheadDashboard({
     }
   }, [logs, searchResults, isAutoScroll]);
 
+  const handleScroll = () => {
+    if (!logContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
+    // Allow a small threshold to avoid precision issues
+    const isAtBottom = scrollHeight - scrollTop - clientHeight <= 20;
+
+    if (isAutoScroll && !isAtBottom) {
+      setIsAutoScroll(false);
+    } else if (!isAutoScroll && isAtBottom) {
+      setIsAutoScroll(true);
+    }
+  };
+
   const apiFetch = async (path: string, options: RequestInit = {}) => {
     const url = `${apiUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
     const headers = { ...options.headers } as Record<string, string>;
@@ -857,7 +870,7 @@ export function LogheadDashboard({
   );
 
   return (
-    <div className="min-h-screen w-full bg-zinc-950 text-gray-100 flex flex-col">
+    <div className="h-full w-full bg-zinc-950 text-gray-100 flex flex-col min-h-0">
       {/* Header / Toolbar */}
       <div className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
@@ -1078,7 +1091,7 @@ export function LogheadDashboard({
       {/* Main Content */}
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
         {selectedProject ? (
-          <div className="h-full flex flex-col space-y-3">
+          <div className="flex-1 flex flex-col space-y-3 min-h-0">
             {/* Stream Identity + Token */}
             {currentStream && (
               <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 shrink-0">
@@ -1274,6 +1287,7 @@ export function LogheadDashboard({
                     </div>
                     <div
                       ref={logContainerRef}
+                      onScroll={handleScroll}
                       className="flex-1 bg-[#0d0d0d] font-mono text-sm overflow-y-auto p-4"
                     >
                       <ErrorBoundary>
