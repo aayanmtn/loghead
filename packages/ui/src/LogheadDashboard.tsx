@@ -148,8 +148,11 @@ function normalizeApiBaseUrl(url: string): string {
   return normalized;
 }
 
-function getIngestionCommand(baseUrl: string, token: string) {
-  return `npx @loghead/terminal --base-url ${baseUrl} --token ${token}`;
+function getIngestionCommand(type: string, baseUrl: string, token: string) {
+  if (type === "docker") {
+    return `npx @loghead/docker --container <container-name> --api ${baseUrl} --token ${token}`;
+  }
+  return `your-command | npx @loghead/terminal --api ${baseUrl} --token ${token}`;
 }
 
 function sharedMcpJson(apiUrl: string, token: string): string {
@@ -359,7 +362,7 @@ export function LogheadDashboard({
   const [newProjectName, setNewProjectName] = useState("");
   const [isCreateStreamOpen, setIsCreateStreamOpen] = useState(false);
   const [newStreamName, setNewStreamName] = useState("");
-  const [newStreamType, setNewStreamType] = useState("http");
+  const [newStreamType, setNewStreamType] = useState("browser");
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -859,8 +862,8 @@ export function LogheadDashboard({
 
   const ingestionUrl = apiBaseUrl;
   const ingestionCommand =
-    streamToken && ingestionUrl
-      ? getIngestionCommand(ingestionUrl, streamToken)
+    streamToken && ingestionUrl && currentStream
+      ? getIngestionCommand(currentStream.type, ingestionUrl, streamToken)
       : "";
 
   const activeGuide = getConnectGuide(
@@ -1145,37 +1148,42 @@ export function LogheadDashboard({
                           </button>
                         </div>
 
-                        <div className="mt-2">
-                          <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                            CLI Ingestion Command
-                          </div>
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div
-                              className="flex-1 min-w-0 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded p-2 text-zinc-300 truncate"
-                              title={ingestionCommand}
-                            >
-                              {ingestionCommand}
+                        {currentStream?.type !== "browser" &&
+                          currentStream?.type !== "http" && (
+                            <div className="mt-2">
+                              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                                CLI Ingestion Command
+                              </div>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div
+                                  className="flex-1 min-w-0 text-xs font-mono bg-zinc-950 border border-zinc-800 rounded p-2 text-zinc-300 truncate"
+                                  title={ingestionCommand}
+                                >
+                                  {ingestionCommand}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(
+                                      ingestionCommand,
+                                    );
+                                    setIngestionCopied(true);
+                                    setTimeout(
+                                      () => setIngestionCopied(false),
+                                      2000,
+                                    );
+                                  }}
+                                  className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                                  title="Copy CLI command"
+                                >
+                                  {ingestionCopied ? (
+                                    <Check className="w-4 h-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(ingestionCommand);
-                                setIngestionCopied(true);
-                                setTimeout(
-                                  () => setIngestionCopied(false),
-                                  2000,
-                                );
-                              }}
-                              className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
-                              title="Copy CLI command"
-                            >
-                              {ingestionCopied ? (
-                                <Check className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Copy className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
+                          )}
                       </div>
                     )}
                   </div>
