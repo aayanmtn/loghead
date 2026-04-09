@@ -394,9 +394,15 @@ export function LogheadDashboard({
   // Auto-scroll effect
   useEffect(() => {
     if (isAutoScroll && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+      const scrollTimer = setTimeout(() => {
+        if (logContainerRef.current) {
+          logContainerRef.current.scrollTop =
+            logContainerRef.current.scrollHeight;
+        }
+      }, 50);
+      return () => clearTimeout(scrollTimer);
     }
-  }, [logs, isAutoScroll]);
+  }, [logs, searchResults, isAutoScroll]);
 
   const apiFetch = async (path: string, options: RequestInit = {}) => {
     const url = `${apiUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
@@ -1268,7 +1274,7 @@ export function LogheadDashboard({
                     </div>
                     <div
                       ref={logContainerRef}
-                      className="flex-1 bg-[#0d0d0d] font-mono text-sm overflow-y-auto p-4 scroll-smooth"
+                      className="flex-1 bg-[#0d0d0d] font-mono text-sm overflow-y-auto p-4"
                     >
                       <ErrorBoundary>
                         {searchQuery ? (
