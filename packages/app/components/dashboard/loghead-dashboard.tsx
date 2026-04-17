@@ -2019,7 +2019,7 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
             </div>
           </div>
 
-          <div className="w-full animate-in zoom-in-95 duration-200">
+          <div className="mx-auto w-full max-w-5xl animate-in zoom-in-95 duration-200">
             <Onboarding
               apiUrl={apiBaseUrl}
               token={connectionInfo?.token || ""}

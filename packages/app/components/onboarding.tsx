@@ -399,7 +399,7 @@ export function Onboarding({
   };
 
   return (
-    <div className="flex items-start gap-5 w-full max-w-2xl mx-auto">
+    <div className="mx-auto flex w-full max-w-4xl items-start gap-5">
       {/* Vertical stepper — outside the card */}
       <div className="flex flex-col items-center pt-6 shrink-0">
         {STEPS.map((s, i) => (
@@ -456,17 +456,23 @@ export function Onboarding({
                   key={p.id}
                   onClick={() => setPlatform(p.id)}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                    "relative overflow-hidden px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
                     p.id === "auto"
                       ? platform === "auto"
-                        ? "bg-emerald-500 border-emerald-500 text-black"
-                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                        ? "bg-emerald-500 border-emerald-400 text-black shadow-[0_0_0_1px_rgba(16,185,129,0.5),0_0_24px_rgba(16,185,129,0.2)]"
+                        : "border-emerald-500/60 bg-emerald-500/8 text-emerald-200 shadow-[0_0_0_1px_rgba(16,185,129,0.2)] hover:border-emerald-400 hover:text-emerald-100"
                       : platform === p.id
-                        ? "bg-emerald-600/20 border-emerald-500/60 text-emerald-300"
+                        ? "bg-emerald-500 border-emerald-400 text-black shadow-[0_0_0_1px_rgba(16,185,129,0.5),0_0_24px_rgba(16,185,129,0.2)]"
                         : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200",
                   )}
                 >
-                  {p.label}
+                  {p.id === "auto" && (
+                    <>
+                      <span className="absolute inset-0 rounded-lg border border-emerald-400/50 animate-pulse" />
+                      <span className="absolute inset-[1px] rounded-[7px] bg-emerald-400/5" />
+                    </>
+                  )}
+                  <span className="relative z-10">{p.label}</span>
                 </button>
               ))}
             </div>
