@@ -853,6 +853,23 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
     }
   };
 
+  const formatStreamTypeLabel = (streamType?: string) => {
+    switch (streamType) {
+      case "opentelemetry":
+        return "OpenTelemetry";
+      case "aws":
+        return "AWS";
+      case "browser":
+        return "Browser";
+      case "docker":
+        return "Docker";
+      case "terminal":
+        return "Terminal";
+      default:
+        return "Unknown";
+    }
+  };
+
   const openOnboarding = (
     initialStep: OnboardingStep,
     streamType = "terminal",
@@ -1127,38 +1144,50 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
             {/* Stream Identity + Onboarding CTA */}
             {currentStream && (
               <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3 shrink-0">
-                <div className="grid grid-cols-1 md:grid-cols-[minmax(220px,auto)_1fr] gap-x-6 gap-y-2 items-center">
-                  <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                    Stream ID
-                  </div>
-                  <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                    Connect Project
-                  </div>
-
-                  <div
-                    className="text-sm font-mono text-zinc-300 truncate"
-                    title={currentStream.id}
-                  >
-                    {currentStream.id}
-                  </div>
-
-                  <div className="min-w-0 flex items-center gap-3">
-                    <p className="text-sm text-zinc-300">
-                      Need to connect your project to this stream?
-                    </p>
-                    <button
-                      onClick={() =>
-                        openOnboarding(
-                          4,
-                          currentStream.type,
-                          currentStream.id,
-                        )
-                      }
-                      className="ml-auto inline-flex items-center gap-2 px-3 py-1.5 border border-emerald-500/40 text-emerald-300 hover:text-emerald-200 hover:border-emerald-400/60 hover:bg-emerald-500/10 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                <div className="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-[minmax(220px,1.5fr)_minmax(140px,0.7fr)_minmax(280px,1.4fr)] md:items-start">
+                  <div className="space-y-1">
+                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      Stream ID
+                    </div>
+                    <div
+                      className="text-sm font-mono text-zinc-300 truncate"
+                      title={currentStream.id}
                     >
-                      Connect
-                      <Plug className="w-4 h-4" />
-                    </button>
+                      {currentStream.id}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      Stream Type
+                    </div>
+                    <div className="text-sm text-zinc-300">
+                      {formatStreamTypeLabel(currentStream.type)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      Connect Project
+                    </div>
+                    <div className="min-w-0 flex items-center gap-3">
+                      <p className="text-sm text-zinc-300">
+                        Need to connect your project to this stream?
+                      </p>
+                      <button
+                        onClick={() =>
+                          openOnboarding(
+                            4,
+                            currentStream.type,
+                            currentStream.id,
+                          )
+                        }
+                        className="ml-auto inline-flex items-center gap-2 rounded px-3 py-1.5 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider text-emerald-300 hover:text-emerald-200 hover:border-emerald-400/60 hover:bg-emerald-500/10 transition-colors whitespace-nowrap"
+                      >
+                        Connect
+                        <Plug className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
