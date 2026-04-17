@@ -10,8 +10,19 @@ const readline_1 = __importDefault(require("readline"));
 async function main() {
     const argv = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
         .option("token", { type: "string", description: "Stream token" })
-        .option("api", { type: "string", default: "https://loghead.dev", description: "API URL" })
-        .option("base-url", { type: "string", description: "Base URL for Loghead API (alternative to --api)" })
+        .option("api", {
+        type: "string",
+        default: "https://loghead.dev",
+        description: "API URL",
+    })
+        .option("base-url", {
+        type: "string",
+        description: "Base URL for Loghead API (alternative to --api)",
+    })
+        .option("local", {
+        type: "boolean",
+        description: "Use local loghead server (http://localhost:4567)",
+    })
         .help()
         .parse();
     const token = argv.token || process.env.LOGHEAD_TOKEN;
@@ -19,14 +30,17 @@ async function main() {
         console.error("Error: Missing token. Provide --token or set LOGHEAD_TOKEN env var.");
         process.exit(1);
     }
-    const apiUrl = (argv["base-url"] || argv.api)
+    let apiUrl = (argv["base-url"] || argv.api)
         .replace(/\/$/, "")
         .replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
+    if (argv.local || process.env.LOGHEAD_LOCAL === "true") {
+        apiUrl = "http://localhost:4567".replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
+    }
     console.error(`[Loghead Terminal] Forwarding stdin to ${apiUrl}...`);
     const rl = readline_1.default.createInterface({
         input: process.stdin,
         output: process.stdout,
-        terminal: false
+        terminal: false,
     });
     // Buffer logs to send in batches
     let batch = [];
@@ -43,18 +57,18 @@ async function main() {
             const parts = token.split(".");
             if (parts.length !== 3)
                 throw new Error("Invalid JWT token format");
-            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+            const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
             const streamId = payload.sub;
             const res = await fetch(`${apiUrl}/api/ingest`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     streamId,
-                    logs: logsToSend
-                })
+                    logs: logsToSend,
+                }),
             });
             if (!res.ok) {
                 console.error(`[Loghead] Failed to send logs: ${res.status} ${await res.text()}`);
@@ -64,7 +78,7 @@ async function main() {
             console.error(`[Loghead] Error sending logs:`, e);
         }
     };
-    rl.on('line', (line) => {
+    rl.on("line", (line) => {
         if (!line.trim())
             return;
         console.log(line); // Pass through
@@ -76,7 +90,7 @@ async function main() {
             timer = setTimeout(flush, 1000);
         }
     });
-    rl.on('close', () => {
+    rl.on("close", () => {
         flush();
     });
 }

@@ -1,6 +1,6 @@
 {
   "name": "@loghead/terminal",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Terminal log ingestor for Loghead",
   "repository": {
     "type": "git",
