@@ -7,6 +7,9 @@
 **/*.db-journal
 **/*.db-wal
 **/coverage
+**/.next
+**/.next/**
+**/*.tsbuildinfo
 .env
 .vscode
 out/

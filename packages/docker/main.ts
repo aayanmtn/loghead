@@ -9,7 +9,7 @@ async function main() {
     const argv = await yargs(hideBin(process.argv))
         .option("token", { type: "string", description: "Stream token" })
         .option("container", { type: "string", description: "Container ID/Name" })
-        .option("api", { type: "string", default: "http://localhost:4567", description: "API URL" })
+        .option("base-url", { type: "string", default: "https://www.loghead.dev", description: "Base URL for Loghead API" })
         .help()
         .parse();
 
@@ -25,7 +25,7 @@ async function main() {
         process.exit(1);
     }
 
-    const apiUrl = (argv.api as string)
+    const apiUrl = (argv.baseUrl as string)
         .replace(/\/$/, "")
         .replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
     console.error(`[Loghead Docker] Attaching to ${container} and forwarding to ${apiUrl}...`);

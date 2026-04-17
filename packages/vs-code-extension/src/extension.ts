@@ -1,13 +1,12 @@
 import * as vscode from "vscode";
 import { ServerView } from "./views/serverView";
-import { serverState } from "./state/serverState";
+import { serverState, LOGHEAD_APP_URL, LOGHEAD_API_URL } from "./state/serverState";
 import { ProjectsView } from "./views/projectsView";
 import { LogsView } from "./views/logView";
-import { startCore, stopCore } from "./backend/coreProcess";
 import * as api from "./backend/api";
 
 export function activate(context: vscode.ExtensionContext) {
-  const outputChannel = vscode.window.createOutputChannel("Loghead Server");
+  const outputChannel = vscode.window.createOutputChannel("Loghead");
   outputChannel.show(true);
 
   try {
@@ -18,29 +17,16 @@ export function activate(context: vscode.ExtensionContext) {
     const logsView = new LogsView();
 
     // >> Restore State
-    const savedMode = context.globalState.get<"local" | "cloud">(
-      "loghead.mode",
-    );
-    if (savedMode === "cloud") {
-      serverState.mode = "cloud";
-      serverState.cloudApiUrl =
-        context.globalState.get<string>("loghead.cloudApiUrl") ||
-        "https://loghead.dev";
-      context.secrets.get("logheadCloudToken").then((token) => {
-        if (token) {
-          serverState.cloudToken = token;
-          serverState.mcpToken = token;
-          serverState.running = true;
-          serverView.refresh();
-          projectsView.refresh();
-          logsView.refresh();
-        } else {
-          // Token missing, revert to local
-          serverState.mode = "local";
-          context.globalState.update("loghead.mode", "local");
-        }
-      });
-    }
+    context.secrets.get("logheadCloudToken").then((token) => {
+      if (token) {
+        serverState.cloudToken = token;
+        serverState.mcpToken = token;
+        serverState.connected = true;
+        serverView.refresh();
+        projectsView.refresh();
+        logsView.refresh();
+      }
+    });
 
     context.subscriptions.push(
       vscode.window.registerUriHandler({
@@ -49,29 +35,21 @@ export function activate(context: vscode.ExtensionContext) {
             const query = new URLSearchParams(uri.query);
             const token = query.get("token");
             if (token) {
-              // Stop local core if running, before switching to cloud
-              stopCore(() => {});
-
               await context.secrets.store("logheadCloudToken", token);
-              serverState.mode = "cloud";
               serverState.cloudToken = token;
-              serverState.cloudApiUrl = "https://loghead.dev";
               serverState.mcpToken = token;
-              serverState.running = true;
-
-              await context.globalState.update("loghead.mode", "cloud");
-              await context.globalState.update(
-                "loghead.cloudApiUrl",
-                "https://loghead.dev",
-              );
+              serverState.connected = true;
 
               // Fetch connection info
               try {
-                const res = await fetch("https://loghead.dev/api/connection", {
+                const res = await fetch(`${LOGHEAD_API_URL}/api/connection`, {
                   headers: { Authorization: `Bearer ${token}` },
                 });
                 if (res.ok) {
-                  // Keep token as is, or update if API returns a different one
+                  const data = (await res.json()) as { token?: string; mcpUrl?: string };
+                  if (data.token) {
+                    serverState.mcpToken = data.token;
+                  }
                 }
               } catch (e) {
                 outputChannel.appendLine(
@@ -80,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
               }
 
               vscode.window.showInformationMessage(
-                "Connected to Loghead Cloud!",
+                "Connected to Loghead!",
               );
               serverView.refresh();
               projectsView.refresh();
@@ -102,69 +80,32 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-      vscode.commands.registerCommand("loghead.start", () => {
-        if (serverState.mode === "cloud") {
-          vscode.window.showErrorMessage(
-            "Running in Cloud mode. Disconnect to start local server.",
-          );
-          return;
-        }
-        outputChannel.appendLine("Command: loghead.start triggered");
-        startCore(context, outputChannel, () => {
-          serverView.refresh();
-          projectsView.refresh();
-          logsView.refresh();
-        });
-      }),
-
-      vscode.commands.registerCommand("loghead.stop", () => {
-        //   serverState.running = false;
-        //   serverState.port = undefined;
-        //   serverState.mcpToken = undefined;
-        //   serverView.refresh();
-
-        if (serverState.mode === "cloud") {
-          vscode.window.showErrorMessage(
-            "Running in Cloud mode. Use Disconnect instead.",
-          );
-          return;
-        }
-
-        stopCore(() => {
-          serverView.refresh();
-          logsView.refresh();
-        });
-      }),
       // >> Command: Open Dashboard
       vscode.commands.registerCommand("loghead.openDashboard", () => {
-        vscode.env.openExternal(vscode.Uri.parse("https://loghead.dev/app"));
+        vscode.env.openExternal(vscode.Uri.parse(LOGHEAD_APP_URL));
       }),
 
-      // >> Command: Connect to Cloud
+      // >> Command: Connect to Loghead
       vscode.commands.registerCommand("loghead.connectCloud", async () => {
         const uri = vscode.Uri.parse(
-          `https://loghead.dev/app/extension-auth?callback=${vscode.env.uriScheme}://onvoai.loghead/auth`,
+          `${LOGHEAD_APP_URL}/extension-auth?callback=${vscode.env.uriScheme}://onvoai.loghead/auth`,
         );
         vscode.env.openExternal(uri);
       }),
 
-      // >> Command: Disconnect Cloud
+      // >> Command: Disconnect
       vscode.commands.registerCommand("loghead.disconnectCloud", async () => {
         await context.secrets.delete("logheadCloudToken");
-        serverState.mode = "local";
         serverState.cloudToken = undefined;
-        serverState.cloudApiUrl = undefined;
         serverState.mcpToken = undefined;
-        serverState.running = false;
-
-        await context.globalState.update("loghead.mode", "local");
-        await context.globalState.update("loghead.cloudApiUrl", undefined);
+        serverState.connected = false;
 
         serverView.refresh();
         projectsView.refresh();
         logsView.refresh();
-        vscode.window.showInformationMessage("Disconnected from Loghead Cloud");
+        vscode.window.showInformationMessage("Disconnected from Loghead");
       }),
+
       // >> Command to copy MCP token
       vscode.commands.registerCommand("loghead.copyMcpToken", async () => {
         if (!serverState.mcpToken) return;
@@ -174,16 +115,9 @@ export function activate(context: vscode.ExtensionContext) {
 
       // >> Command to copy MCP config
       vscode.commands.registerCommand("loghead.copyMcpConfig", async () => {
-        if (!serverState.mcpToken) return;
-
-        let env: any = {
-          LOGHEAD_TOKEN: serverState.mcpToken,
-        };
-
-        if (serverState.mode === "cloud") {
-          env.LOGHEAD_API_URL = "https://loghead.dev";
-        } else {
-          env.LOGHEAD_API_URL = `http://localhost:${serverState.port}`;
+        if (!serverState.mcpToken) {
+          vscode.window.showWarningMessage("Connect to Loghead first");
+          return;
         }
 
         const config = {
@@ -191,23 +125,25 @@ export function activate(context: vscode.ExtensionContext) {
             loghead: {
               command: "npx",
               args: ["-y", "@loghead/mcp"],
-              env,
+              env: {
+                LOGHEAD_API_URL: LOGHEAD_API_URL,
+                LOGHEAD_TOKEN: serverState.mcpToken,
+              },
             },
           },
         };
 
         await vscode.env.clipboard.writeText(JSON.stringify(config, null, 2));
-
         vscode.window.showInformationMessage("MCP config copied");
-      }),
-
-      // >> Command to open logs for a stream
-      vscode.commands.registerCommand("loghead.openLogs", (id, name) => {
-        vscode.window.showInformationMessage(`Open logs for ${name}`);
       }),
 
       // >> Command to create a new project
       vscode.commands.registerCommand("loghead.createProject", async () => {
+        if (!serverState.connected) {
+          vscode.window.showErrorMessage("Connect to Loghead first");
+          return;
+        }
+
         const name = await vscode.window.showInputBox({
           prompt: "Project name",
         });
@@ -225,8 +161,8 @@ export function activate(context: vscode.ExtensionContext) {
 
       // >> Command to create a new stream
       vscode.commands.registerCommand("loghead.createStream", async () => {
-        if (!serverState.running) {
-          vscode.window.showErrorMessage("Loghead server is not running");
+        if (!serverState.connected) {
+          vscode.window.showErrorMessage("Connect to Loghead first");
           return;
         }
 
@@ -238,7 +174,6 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        // 🚫 No projects exist
         if (projects.length === 0) {
           const create = await vscode.window.showWarningMessage(
             "No projects found. Create a project first?",
@@ -251,7 +186,6 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        // ✅ Ask user to choose project
         const projectPick = await vscode.window.showQuickPick(
           projects.map((p: any) => ({
             label: p.name,
@@ -267,7 +201,6 @@ export function activate(context: vscode.ExtensionContext) {
         });
         if (!streamName) return;
 
-        // Ask stream type
         const streamType = await vscode.window.showQuickPick(
           ["terminal", "docker", "browser", "opentelemetry", "aws"],
           { placeHolder: "Select stream type" },
@@ -295,8 +228,8 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         "loghead.copyStreamToken",
         async (node) => {
-          if (!serverState.running) {
-            vscode.window.showErrorMessage("Loghead is not running");
+          if (!serverState.connected) {
+            vscode.window.showErrorMessage("Connect to Loghead first");
             return;
           }
 
@@ -319,18 +252,14 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         "loghead.copyStreamIngest",
         async (node) => {
-          if (!serverState.running) {
-            vscode.window.showErrorMessage("Loghead is not running");
+          if (!serverState.connected) {
+            vscode.window.showErrorMessage("Connect to Loghead first");
             return;
           }
           if (!node?.id) return;
           try {
             const token = await api.getStreamToken(node.id);
-            const apiUrl =
-              serverState.mode === "cloud"
-                ? "LOGHEAD_API_URL=https://loghead.dev "
-                : "";
-            const command = `"dev:log": "<APP_RUNNING_SCRIPT> | ${apiUrl}npx @loghead/terminal --token ${token}"`;
+            const command = `npx @loghead/terminal --base-url ${LOGHEAD_API_URL} --token ${token}`;
             await vscode.env.clipboard.writeText(command);
 
             vscode.window.showInformationMessage(
@@ -344,8 +273,8 @@ export function activate(context: vscode.ExtensionContext) {
 
       // >> Command to delete a stream
       vscode.commands.registerCommand("loghead.deleteStream", async (node) => {
-        if (!serverState.running) {
-          vscode.window.showErrorMessage("Loghead is not running");
+        if (!serverState.connected) {
+          vscode.window.showErrorMessage("Connect to Loghead first");
           return;
         }
 
@@ -360,9 +289,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         try {
           await api.deleteStream(node.id);
-
           vscode.window.showInformationMessage(`Stream "${node.name}" deleted`);
-
           projectsView.refresh();
         } catch (e) {
           vscode.window.showErrorMessage(String(e));
@@ -371,8 +298,8 @@ export function activate(context: vscode.ExtensionContext) {
 
       // >> Command to delete a project
       vscode.commands.registerCommand("loghead.deleteProject", async (node) => {
-        if (!serverState.running) {
-          vscode.window.showErrorMessage("Loghead is not running");
+        if (!serverState.connected) {
+          vscode.window.showErrorMessage("Connect to Loghead first");
           return;
         }
 
@@ -398,6 +325,11 @@ export function activate(context: vscode.ExtensionContext) {
 
       // >> Command to select logs project
       vscode.commands.registerCommand("loghead.selectLogsProject", async () => {
+        if (!serverState.connected) {
+          vscode.window.showErrorMessage("Connect to Loghead first");
+          return;
+        }
+
         const projects = (await api.fetchProjects()) as any[];
         if (!projects.length) {
           vscode.window.showInformationMessage("No projects found");
@@ -420,6 +352,11 @@ export function activate(context: vscode.ExtensionContext) {
 
       // >> Command to select logs stream
       vscode.commands.registerCommand("loghead.selectLogsStream", async () => {
+        if (!serverState.connected) {
+          vscode.window.showErrorMessage("Connect to Loghead first");
+          return;
+        }
+
         let projects: any[] = [];
         try {
           projects = (await api.fetchProjects()) as any[];
@@ -431,7 +368,7 @@ export function activate(context: vscode.ExtensionContext) {
         const allStreams = projects.flatMap((p: any) =>
           (p.streams || []).map((s: any) => ({
             label: s.name,
-            description: `${p.name} • ${s.type}`,
+            description: `${p.name} \u2022 ${s.type}`,
             projectId: p.id,
             streamId: s.id,
           })),

@@ -1,9 +1,8 @@
+export const LOGHEAD_API_URL = "https://www.loghead.dev";
+export const LOGHEAD_APP_URL = "https://www.loghead.dev/app";
+
 export const serverState = {
-  mode: "local" as "local" | "cloud",
-  running: false,
-  managed: false,
-  port: undefined as number | undefined,
+  connected: false,
   mcpToken: undefined as string | undefined,
   cloudToken: undefined as string | undefined,
-  cloudApiUrl: undefined as string | undefined,
 };

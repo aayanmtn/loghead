@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "loghead": {
+      "type": "local",
+      "command": ["npx", "-y", "@loghead/mcp"],
+      "environment": {
+        "LOGHEAD_API_URL": "http://localhost:3001",
+        "LOGHEAD_TOKEN": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzeXN0ZW06bWNwIiwiaXNzIjoibG9naGVhZCIsInJvbGUiOiJhZG1pbiIsInRlbmFudElkIjoiNFc2VzNPNTBOUGtEazFEaHRpbE82N2hWcGpDdVV2MFEiLCJpYXQiOjE3NzY0NDI4MzV9.4YLY4CvvfUgJA2aA_OWQKUcX3VOyathyQjrR34mrTEPOazEu35nOtbOTfnN70KpUAGUgXdaAcIT7T3ZAxdXYEw"
+      }
+    }
+  }
+}

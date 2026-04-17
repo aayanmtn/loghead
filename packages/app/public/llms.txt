@@ -1,0 +1,33 @@
+# Loghead
+
+Loghead is an open-source CLI tool and managed service that transforms structured application logs (JSON) into beautiful, human-readable output in your terminal. It acts as a modern alternative to tools like `pino-pretty` or `jq` but with AI-powered debugging capabilities.
+
+## Key Features
+
+- **Zero Config:** Automatically detects log format (JSON, Pino, Bunyan, etc.).
+- **Pipe Friendly:** Works with any tool that outputs logs to stdout (e.g., `node server.js | loghead`).
+- **AI Integration:** Pipe logs directly into LLMs (like ChatGPT or Claude) for instant context-aware debugging.
+- **Filtering:** Powerful fuzzy search and filtering syntax.
+- **Cross-Platform:** Works on macOS, Linux, and Windows.
+
+## Installation
+
+```bash
+npm install -g loghead
+```
+
+## Usage
+
+Basic usage:
+```bash
+node server.js | loghead
+```
+
+With AI debugging:
+```bash
+node server.js | loghead --ai
+```
+
+## Documentation
+
+Full documentation is available at [https://github.com/onvo-ai/loghead](https://github.com/onvo-ai/loghead).

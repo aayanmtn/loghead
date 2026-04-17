@@ -25,12 +25,8 @@ export class LogsView implements vscode.TreeDataProvider<vscode.TreeItem> {
   }
 
   async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
-    if (!serverState.running) {
-      return [new vscode.TreeItem("Loghead server not running")];
-    }
-
-    if (serverState.mode === "local" && !serverState.port) {
-      return [new vscode.TreeItem("Waiting for Loghead server...")];
+    if (!serverState.connected) {
+      return [new vscode.TreeItem("Connect to Loghead to view logs")];
     }
 
     // Root

@@ -28,13 +28,17 @@ export class ProjectsView implements vscode.TreeDataProvider<vscode.TreeItem> {
   }
 
   async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
-    // 🔒 Server not running
-    if (!serverState.running) {
-      const info = new vscode.TreeItem("Loghead server not running");
+    // 🔒 Not connected
+    if (!serverState.connected) {
+      const info = new vscode.TreeItem("Connect to Loghead");
       info.iconPath = new vscode.ThemeIcon(
-        "warning",
-        new vscode.ThemeColor("charts.yellow")
+        "cloud",
+        new vscode.ThemeColor("charts.yellow"),
       );
+      info.command = {
+        command: "loghead.connectCloud",
+        title: "Connect to Loghead",
+      };
       return [info];
     }
 
