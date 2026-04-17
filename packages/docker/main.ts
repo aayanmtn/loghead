@@ -18,6 +18,10 @@ async function main() {
       type: "boolean",
       description: "Use local loghead server (http://localhost:4567)",
     })
+    .option("base-url", {
+      type: "string",
+      description: "Base URL for Loghead API (alternative to --api)",
+    })
     .help()
     .parse();
 
@@ -35,7 +39,7 @@ async function main() {
     process.exit(1);
   }
 
-  let apiUrl = (argv.api as string)
+  let apiUrl = ((argv["base-url"] as string) || (argv.api as string))
     .replace(/\/$/, "")
     .replace(/^(https?:\/\/)localhost\b/, "$1127.0.0.1");
 

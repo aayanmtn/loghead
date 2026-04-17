@@ -1,11 +1,8 @@
-import { serverState } from "../state/serverState";
+import { serverState, LOGHEAD_API_URL } from "../state/serverState";
 import * as vscode from "vscode";
 
 const baseUrl = () => {
-  if (serverState.mode === "cloud") {
-    return serverState.cloudApiUrl || "https://loghead.dev";
-  }
-  return `http://127.0.0.1:${serverState.port ?? 4567}`;
+  return LOGHEAD_API_URL;
 };
 
 function headers() {
@@ -13,10 +10,7 @@ function headers() {
     "Content-Type": "application/json",
   };
 
-  const token =
-    serverState.mode === "cloud"
-      ? serverState.cloudToken
-      : serverState.mcpToken;
+  const token = serverState.cloudToken || serverState.mcpToken;
 
   if (token) {
     h.Authorization = `Bearer ${token}`;
@@ -28,10 +22,10 @@ function headers() {
 async function apiFetch(url: string, init?: RequestInit) {
   const res = await fetch(url, init);
 
-  if (res.status === 401 && serverState.mode === "cloud") {
+  if (res.status === 401) {
     vscode.commands.executeCommand("loghead.disconnectCloud");
     vscode.window.showErrorMessage(
-      "Session expired. Please reconnect to Loghead Cloud.",
+      "Session expired. Please reconnect to Loghead.",
     );
     throw new Error("Session expired");
   }

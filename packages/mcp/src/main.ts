@@ -23,7 +23,7 @@ function normalizeBaseUrl(url: string) {
     return normalized;
 }
 
-const baseUrl = normalizeBaseUrl(process.env.LOGHEAD_API_URL || "http://localhost:4567");
+const baseUrl = normalizeBaseUrl(process.env.LOGHEAD_API_URL || "https://www.loghead.dev");
 const API_BASE_CANDIDATES = [`${baseUrl}/api`, baseUrl];
 
 class ApiError extends Error {
@@ -221,7 +221,7 @@ async function main() {
                     return { content: [{ type: "text", text: `Stream created: ${stream.id}\nToken: ${stream.token}` }] };
                 } catch (error) {
                     // Cloud uses POST /api/streams while Core uses POST /api/streams/create.
-                    if (!(error instanceof ApiError) || error.status !== 404) {
+                    if (!(error instanceof ApiError) || (error.status !== 404 && error.status !== 405)) {
                         throw error;
                     }
                 }

@@ -10,7 +10,7 @@ const packages = fs
 console.log("Building all packages...");
 
 for (const pkg of packages) {
-  if (pkg === "browser" || pkg === "vs-code-extension") continue; // Skip browser package as it's an extension
+  if (pkg === "browser" || pkg === "vs-code-extension" || pkg === "cloud" || pkg === "app") continue;
   console.log(`\n>>> Building ${pkg}...`);
   const pkgDir = path.join(packagesDir, pkg);
   try {
