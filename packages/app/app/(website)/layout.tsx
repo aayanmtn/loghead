@@ -95,6 +95,7 @@ export default function RootLayout({
           inter.variable,
           jetbrainsMono.variable,
         )}
+        suppressHydrationWarning
       >
         <ThemeProvider
           attribute="class"

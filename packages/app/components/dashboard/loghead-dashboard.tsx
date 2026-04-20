@@ -899,7 +899,9 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
               </div>
               <div className="leading-tight hidden sm:block">
                 <div className="text-sm font-semibold">Loghead</div>
-                <div className="text-[10px] text-zinc-500">Infra reasoning layer</div>
+                <div className="text-[10px] text-zinc-500">
+                  Infra reasoning layer
+                </div>
               </div>
             </div>
 
@@ -1296,7 +1298,9 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
                               : "border-emerald-500/30 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30",
                           )}
                         >
-                          {streamTokenLoading ? "Loading Token" : "Send Test Log"}
+                          {streamTokenLoading
+                            ? "Loading Token"
+                            : "Send Test Log"}
                         </button>
                         <button
                           onClick={() => setIsAutoScroll(!isAutoScroll)}
@@ -1877,7 +1881,7 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
 
             <div className="flex divide-x divide-zinc-800 max-h-[70vh]">
               {/* Left: Credentials */}
-              <div className="p-6 space-y-6 w-80 shrink-0 overflow-y-auto">
+              <div className="p-6 space-y-6 w-80 shrink-0 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                     Loghead API URL
@@ -1934,7 +1938,7 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
               </div>
 
               {/* Right: Setup Instructions */}
-              <div className="p-6 flex-1 overflow-y-auto">
+              <div className="p-6 flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
                 <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
                   Setup Instructions
                 </div>

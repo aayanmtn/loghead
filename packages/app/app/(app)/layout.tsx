@@ -18,8 +18,11 @@ export default function AppLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-[#0b0f14] text-white`}>
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${inter.className} bg-[#0b0f14] text-white`}
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>
