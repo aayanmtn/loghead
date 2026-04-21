@@ -45,6 +45,12 @@ const SignupPage = () => {
           setError(mapAuthError(res.error));
           return;
         }
+
+        // Redirect to verify-email instead of /app
+        router.push(
+          `/app/auth/verify-email?email=${encodeURIComponent(email)}`,
+        );
+        return;
       } else {
         const res = await authClient.signIn.email({
           email,

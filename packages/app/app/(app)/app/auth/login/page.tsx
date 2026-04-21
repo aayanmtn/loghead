@@ -51,6 +51,15 @@ const AuthPage = () => {
         });
 
         if (res.error) {
+          if (
+            res.error.code === "EMAIL_NOT_VERIFIED" ||
+            res.error.status === 403
+          ) {
+            router.push(
+              `/app/auth/verify-email?email=${encodeURIComponent(email)}`,
+            );
+            return;
+          }
           setError(mapAuthError(res.error));
           return;
         }

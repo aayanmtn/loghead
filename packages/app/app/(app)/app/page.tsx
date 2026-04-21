@@ -15,6 +15,10 @@ export default async function HomePage() {
 
   const user = session.user;
 
+  if (!user.emailVerified) {
+    redirect(`/app/auth/verify-email?email=${encodeURIComponent(user.email)}`);
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
       <main className="flex-1">

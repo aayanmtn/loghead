@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import { pool } from "@/lib/db";
 import { provisionDatabase } from "@/lib/provision";
 import { randomBytes } from "crypto";
+import { sendVerificationEmail } from "@/lib/email";
 
 if (!process.env.BETTER_AUTH_BASE_URL) {
   throw new Error("BETTER_AUTH_BASE_URL is not set");
@@ -28,6 +29,14 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
+  },
+
+  emailVerification: {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendVerificationEmail({ to: user.email, url });
+    },
   },
 
   socialProviders: {

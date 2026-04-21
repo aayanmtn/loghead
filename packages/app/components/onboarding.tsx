@@ -133,7 +133,7 @@ function CodeBlock({ code, label }: { code: string; label?: string }) {
         </div>
       )}
       <div className="relative group">
-        <pre className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-words overflow-x-auto">
+        <pre className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-words overflow-x-auto max-h-64 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar]:h-2 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
           {code}
         </pre>
         <button
@@ -503,7 +503,7 @@ export function Onboarding({
                         )}
                       </button>
                     </div>
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm font-mono text-emerald-300 whitespace-pre-wrap break-words">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm font-mono text-emerald-300 whitespace-pre-wrap break-words max-h-64 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
                       {snippet.code}
                     </div>
                   </div>
@@ -814,7 +814,7 @@ export function Onboarding({
                         )}
                       </button>
                     </div>
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm font-mono text-emerald-300 whitespace-pre-wrap break-words">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm font-mono text-emerald-300 whitespace-pre-wrap break-words max-h-64 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
                       {integrationPrompt}
                     </div>
                   </div>

@@ -33,6 +33,13 @@ export default function InviteAcceptPage() {
       return;
     }
 
+    if (!session.user.emailVerified) {
+      router.push(
+        `/app/auth/verify-email?email=${encodeURIComponent(session.user.email)}`,
+      );
+      return;
+    }
+
     const acceptInvite = async () => {
       setStatus("accepting");
       try {
