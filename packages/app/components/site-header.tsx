@@ -16,9 +16,9 @@ export function SiteHeader() {
     { href: "/#how-it-works", label: "How it Works" },
     { href: "/#pricing", label: "Pricing" },
     {
-      href: "https://github.com/onvo-ai/loghead",
+      href: "/guides",
       label: "Docs",
-      external: true,
+      external: false,
     },
   ];
 
@@ -77,7 +77,12 @@ export function SiteHeader() {
           <Link
             href="/app"
             className="hidden px-4 py-2 text-sm font-medium text-white bg-[#00FF94]/10 border border-[#00FF94]/20 rounded-lg transition-colors hover:bg-[#00FF94]/20 md:block"
-            onClick={() => sendGAEvent("nav_click", { label: "Login", location: "site_header" })}
+            onClick={() =>
+              sendGAEvent("nav_click", {
+                label: "Login",
+                location: "site_header",
+              })
+            }
           >
             Log In
           </Link>
