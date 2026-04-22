@@ -403,9 +403,9 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
   // Auto-scroll effect
   useEffect(() => {
     if (isAutoScroll && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+      logContainerRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [logs, isAutoScroll]);
+  }, [logs, searchResults, isAutoScroll]);
 
   const fetchProjects = async (autoOnboard = false) => {
     try {
@@ -883,7 +883,7 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-zinc-950 text-gray-100 flex flex-col pb-6">
+    <div className="h-screen w-full bg-zinc-950 text-gray-100 flex flex-col pb-6">
       {/* Header / Toolbar */}
       <div className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
@@ -1142,7 +1142,7 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
       {/* Main Content */}
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
         {selectedProject ? (
-          <div className="h-full flex flex-col space-y-3">
+          <div className="flex-1 flex flex-col space-y-3 min-h-0">
             {/* Stream Identity + Onboarding CTA */}
             {currentStream && (
               <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3 shrink-0">
@@ -1315,10 +1315,7 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
                         </button>
                       </div>
                     </div>
-                    <div
-                      ref={logContainerRef}
-                      className="flex-1 bg-[#0d0d0d] font-mono text-sm overflow-y-auto p-4 scroll-smooth"
-                    >
+                    <div className="flex-1 bg-[#0d0d0d] font-mono text-sm overflow-y-auto p-4 scroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
                       <ErrorBoundary>
                         {searchQuery ? (
                           isSearching ? (
@@ -1338,6 +1335,7 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
                                   </div>
                                 </div>
                               ))}
+                              <div ref={logContainerRef} />
                             </div>
                           ) : (
                             <div className="text-zinc-500">
@@ -1345,9 +1343,12 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
                             </div>
                           )
                         ) : logs ? (
-                          <pre className="whitespace-pre-wrap text-zinc-300 break-all font-mono leading-relaxed text-xs">
-                            {logs}
-                          </pre>
+                          <>
+                            <pre className="whitespace-pre-wrap text-zinc-300 break-all font-mono leading-relaxed text-xs">
+                              {logs}
+                            </pre>
+                            <div ref={logContainerRef} />
+                          </>
                         ) : (
                           <div className="flex flex-col items-center justify-center h-full text-zinc-700 italic">
                             <Activity className="w-8 h-8 mb-2 opacity-50" />
