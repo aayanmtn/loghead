@@ -1146,7 +1146,7 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
             {/* Stream Identity + Onboarding CTA */}
             {currentStream && (
               <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3 shrink-0">
-                <div className="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-[minmax(220px,1.5fr)_minmax(140px,0.7fr)_minmax(280px,1.4fr)] md:items-start">
+                <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-4 md:items-start">
                   <div className="space-y-1">
                     <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
                       Stream ID
@@ -1170,12 +1170,43 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
 
                   <div className="space-y-1">
                     <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      Stream Token
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-mono text-zinc-300 truncate max-w-[150px]">
+                        {streamTokenLoading
+                          ? "Loading..."
+                          : streamTokenError
+                            ? "Error"
+                            : streamToken || "None"}
+                      </div>
+                      {streamToken &&
+                        !streamTokenLoading &&
+                        !streamTokenError && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(streamToken);
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 2000);
+                            }}
+                            className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                            title="Copy Token"
+                          >
+                            {copied ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
                       Connect Project
                     </div>
-                    <div className="min-w-0 flex items-center gap-3">
-                      <p className="text-sm text-zinc-300">
-                        Need to connect your project to this stream?
-                      </p>
+                    <div>
                       <button
                         onClick={() =>
                           openOnboarding(
@@ -1184,10 +1215,11 @@ export function LogheadDashboard({ user }: { user: AppUser }) {
                             currentStream.id,
                           )
                         }
-                        className="ml-auto inline-flex items-center gap-2 rounded px-3 py-1.5 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider text-emerald-300 hover:text-emerald-200 hover:border-emerald-400/60 hover:bg-emerald-500/10 transition-colors whitespace-nowrap"
+                        title="View setup instructions to connect your project to this stream"
+                        className="inline-flex items-center gap-1.5 rounded bg-emerald-500/10 px-2.5 py-0.5 border border-emerald-500/30 text-xs font-medium text-emerald-400 hover:text-emerald-300 hover:border-emerald-400/50 hover:bg-emerald-500/20 transition-colors whitespace-nowrap"
                       >
-                        Connect
-                        <Plug className="w-4 h-4" />
+                        <Plug className="w-3.5 h-3.5" />
+                        Setup Guide
                       </button>
                     </div>
                   </div>
