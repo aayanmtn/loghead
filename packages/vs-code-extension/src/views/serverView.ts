@@ -30,7 +30,7 @@ export class ServerView implements vscode.TreeDataProvider<vscode.TreeItem> {
     const disconnect = new vscode.TreeItem("Disconnect");
     disconnect.iconPath = new vscode.ThemeIcon("plug");
     disconnect.command = {
-      command: "loghead.disconnectCloud",
+      command: "loghead.disconnect",
       title: "Disconnect",
     };
 
@@ -61,7 +61,7 @@ export class ServerView implements vscode.TreeDataProvider<vscode.TreeItem> {
     const connect = new vscode.TreeItem("Connect to Loghead");
     connect.iconPath = new vscode.ThemeIcon("cloud");
     connect.command = {
-      command: "loghead.connectCloud",
+      command: "loghead.connect",
       title: "Connect to Loghead",
     };
 

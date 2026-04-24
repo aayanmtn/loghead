@@ -54,12 +54,12 @@
         "title": "Loghead: Open Dashboard"
       },
       {
-        "command": "loghead.connectCloud",
-        "title": "Connect to Loghead Cloud"
+        "command": "loghead.connect",
+        "title": "Connect to Loghead"
       },
       {
-        "command": "loghead.disconnectCloud",
-        "title": "Disconnect from Loghead Cloud"
+        "command": "loghead.disconnect",
+        "title": "Disconnect from Loghead"
       },
       {
         "command": "loghead.createProject",
@@ -148,7 +148,7 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "dev": "npm run compile && code --extensionDevelopmentPath=."
+    "dev": "npm run compile && code --extensionDevelopmentPath=\"$PWD\""
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

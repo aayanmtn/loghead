@@ -23,7 +23,7 @@ async function apiFetch(url: string, init?: RequestInit) {
   const res = await fetch(url, init);
 
   if (res.status === 401) {
-    vscode.commands.executeCommand("loghead.disconnectCloud");
+    vscode.commands.executeCommand("loghead.disconnect");
     vscode.window.showErrorMessage(
       "Session expired. Please reconnect to Loghead.",
     );

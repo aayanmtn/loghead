@@ -36,7 +36,7 @@ export class ProjectsView implements vscode.TreeDataProvider<vscode.TreeItem> {
         new vscode.ThemeColor("charts.yellow"),
       );
       info.command = {
-        command: "loghead.connectCloud",
+        command: "loghead.connect",
         title: "Connect to Loghead",
       };
       return [info];
@@ -70,7 +70,7 @@ export class ProjectsView implements vscode.TreeDataProvider<vscode.TreeItem> {
 
       const createStreamNode = new CreateStreamNode(project.id);
       const streamNodes = (project.streams || []).map(
-        (s: any) => new StreamNode(s.id, s.name, s.type)
+        (s: any) => new StreamNode(s.id, s.name, s.type),
       );
 
       return [createStreamNode, ...streamNodes];

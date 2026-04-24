@@ -1,6 +1,10 @@
 import * as vscode from "vscode";
 import { ServerView } from "./views/serverView";
-import { serverState, LOGHEAD_APP_URL, LOGHEAD_API_URL } from "./state/serverState";
+import {
+  serverState,
+  LOGHEAD_APP_URL,
+  LOGHEAD_API_URL,
+} from "./state/serverState";
 import { ProjectsView } from "./views/projectsView";
 import { LogsView } from "./views/logView";
 import * as api from "./backend/api";
@@ -17,7 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
     const logsView = new LogsView();
 
     // >> Restore State
-    context.secrets.get("logheadCloudToken").then((token) => {
+    context.secrets.get("logheadToken").then((token) => {
       if (token) {
         serverState.cloudToken = token;
         serverState.mcpToken = token;
@@ -35,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
             const query = new URLSearchParams(uri.query);
             const token = query.get("token");
             if (token) {
-              await context.secrets.store("logheadCloudToken", token);
+              await context.secrets.store("logheadToken", token);
               serverState.cloudToken = token;
               serverState.mcpToken = token;
               serverState.connected = true;
@@ -46,7 +50,10 @@ export function activate(context: vscode.ExtensionContext) {
                   headers: { Authorization: `Bearer ${token}` },
                 });
                 if (res.ok) {
-                  const data = (await res.json()) as { token?: string; mcpUrl?: string };
+                  const data = (await res.json()) as {
+                    token?: string;
+                    mcpUrl?: string;
+                  };
                   if (data.token) {
                     serverState.mcpToken = data.token;
                   }
@@ -57,9 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
                 );
               }
 
-              vscode.window.showInformationMessage(
-                "Connected to Loghead!",
-              );
+              vscode.window.showInformationMessage("Connected to Loghead!");
               serverView.refresh();
               projectsView.refresh();
               logsView.refresh();
@@ -86,7 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
       }),
 
       // >> Command: Connect to Loghead
-      vscode.commands.registerCommand("loghead.connectCloud", async () => {
+      vscode.commands.registerCommand("loghead.connect", async () => {
         const uri = vscode.Uri.parse(
           `${LOGHEAD_APP_URL}/extension-auth?callback=${vscode.env.uriScheme}://onvoai.loghead/auth`,
         );
@@ -94,8 +99,8 @@ export function activate(context: vscode.ExtensionContext) {
       }),
 
       // >> Command: Disconnect
-      vscode.commands.registerCommand("loghead.disconnectCloud", async () => {
-        await context.secrets.delete("logheadCloudToken");
+      vscode.commands.registerCommand("loghead.disconnect", async () => {
+        await context.secrets.delete("logheadToken");
         serverState.cloudToken = undefined;
         serverState.mcpToken = undefined;
         serverState.connected = false;
