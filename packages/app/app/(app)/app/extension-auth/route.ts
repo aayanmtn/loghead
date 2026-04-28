@@ -8,9 +8,9 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const callback = searchParams.get("callback");
 
-  if (!callback || !callback.startsWith("vscode://onvoai.loghead")) {
+  if (!callback || !callback.includes("://onvoai.loghead")) {
     return new NextResponse(
-      "Invalid callback URL. Must start with vscode://onvoai.loghead",
+      "Invalid callback URL. Must contain ://onvoai.loghead",
       { status: 400 },
     );
   }
